@@ -102,38 +102,87 @@ The web service is automatically created when you connect your GitHub repo.
 
 The worker service needs to be created separately from the same GitHub repo.
 
-1. Click "+ New" → "GitHub Repo"
-2. Select the same repository
-3. Railway will create a second service
+**Why separate?** The worker runs FFmpeg processing in the background. It needs to:
+- Run independently from the web server
+- Scale separately based on video processing load
+- Restart without affecting web traffic
 
-**Settings:**
+**Setup Steps:**
 
-1. **Root Directory**
-   - Keep as `/` (same as web service)
+1. **Create Worker Service**
+   - Click "+ New" → "GitHub Repo"
+   - Select the **same repository** as your web service
+   - Railway will create a second service
 
-2. **Build Configuration**
-   - Build Command: `npm install && npm run build:worker`
-   - Start Command: `npm run start:worker`
+2. **Configure Settings**
+   
+   Go to the new service's Settings:
+   
+   - **Service Name**: Rename to "worker" (for clarity)
+   - **Root Directory**: Keep as `/` (same as web service)
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm run start:worker`
+   - **Watch Paths**: (Optional) Add `src/worker/**` to only redeploy on worker changes
 
 3. **Environment Variables**
-   Copy all the same environment variables from the Web service.
+   
+   The worker needs the **exact same environment variables** as the web service:
+   
+   ```bash
+   # Copy all variables from web service
+   # Railway automatically provides DATABASE_URL and REDIS_URL
+   ```
+   
+   **Quick Copy Method:**
+   - Go to Web service → Variables tab
+   - Copy all variables
+   - Go to Worker service → Variables tab
+   - Paste them all
+   
+   ⚠️ **Important**: Both services must use the **same** `DATABASE_URL` and `REDIS_URL`
 
-4. **Service Name**
-   - Rename to "Worker" in settings for clarity
+4. **FFmpeg Availability**
+   
+   Railway's Nixpacks automatically includes FFmpeg. No extra configuration needed!
+   
+   To verify, check worker logs after deployment - you should see:
+   ```
+   Video processing worker started
+   Connected to Redis: redis://...
+   ```
 
-### 6. Verify FFmpeg Availability
+5. **Service Configuration File (Optional)**
+   
+   You can use `railway.worker.json` for advanced configuration:
+   ```json
+   {
+     "build": {
+       "builder": "NIXPACKS"
+     },
+     "deploy": {
+       "startCommand": "npm run start:worker",
+       "restartPolicyType": "ON_FAILURE",
+       "restartPolicyMaxRetries": 10
+     }
+   }
+   ```
+   
+   Place this file in your repo root and reference it in Railway settings.
 
-Railway's Nixpacks builder includes FFmpeg by default. To verify:
+### 6. Test the Deployment
 
-1. After first deployment, check worker logs
-2. You should see: "Video processing worker started"
+After both services are deployed:
 
-If FFmpeg is missing, add a `nixpacks.toml`:
+1. **Test Web Service**
+   - Visit your Railway URL
+   - Sign in with Google
+   - Navigate to dashboard
 
-```toml
-[phases.setup]
-nixPkgs = ['nodejs', 'ffmpeg']
-```
+2. **Test Worker Service**
+   - Check worker logs: should see "Video processing worker started"
+   - Upload a test video
+   - Watch worker logs for processing activity
+   - Verify job completes and email is sent
 
 ### 7. Configure Google OAuth
 

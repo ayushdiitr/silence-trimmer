@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "build:worker": "tsc --project tsconfig.worker.json",
+    "build:worker": "echo 'Worker uses tsx directly - no build needed'",
     "check": "next lint && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -19,7 +19,7 @@
     "lint:fix": "next lint --fix",
     "preview": "next build && next start",
     "start": "next start",
-    "start:worker": "node dist/worker/index.js",
+    "start:worker": "NODE_ENV=production tsx -r dotenv/config src/worker/index.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
