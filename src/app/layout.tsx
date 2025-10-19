@@ -2,10 +2,8 @@ import "~/styles/globals.css";
 
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
-import { Toaster } from "sonner";
 
-import { TRPCReactProvider } from "~/trpc/react";
-import { Navigation } from "~/app/_components/Navigation";
+import { Providers } from "~/app/_components/Providers";
 
 // Force dynamic rendering for the entire app to avoid build-time issues
 export const dynamic = "force-dynamic";
@@ -27,11 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geist.variable}`}>
       <body>
-        <TRPCReactProvider>
-          <Navigation />
-          {children}
-          <Toaster position="top-right" richColors />
-        </TRPCReactProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
