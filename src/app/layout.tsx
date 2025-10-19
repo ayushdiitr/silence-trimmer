@@ -7,6 +7,9 @@ import { Toaster } from "sonner";
 import { TRPCReactProvider } from "~/trpc/react";
 import { Navigation } from "~/app/_components/Navigation";
 
+// Force dynamic rendering for the entire app to avoid build-time issues
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Video Processor - Remove Silence from Videos",
   description: "Automatically remove silences from your videos with AI",
