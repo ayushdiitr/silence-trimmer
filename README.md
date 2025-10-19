@@ -26,6 +26,18 @@ A full-stack SaaS application that automatically removes silences from videos us
 - **Video Processing**: FFmpeg
 - **Deployment**: Railway (Web + Worker)
 
+## Documentation
+
+📚 **Comprehensive guides available:**
+
+- **[SETUP.md](./SETUP.md)** - Local development setup
+- **[RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)** - Full Railway deployment guide
+- **[RAILWAY_WORKER_SETUP.md](./RAILWAY_WORKER_SETUP.md)** - ⭐ Quick worker deployment guide
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture & data flow
+- **[WORKER_DEPLOYMENT.md](./WORKER_DEPLOYMENT.md)** - Worker deployment options (Docker, PM2, Systemd)
+- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
+- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference for common tasks
+
 ## Project Structure
 
 ```

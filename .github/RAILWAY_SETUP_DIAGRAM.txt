@@ -1,0 +1,253 @@
+====================================================================
+            RAILWAY DEPLOYMENT ARCHITECTURE
+====================================================================
+
+┌──────────────────────────────────────────────────────────────────┐
+│                      RAILWAY PROJECT                             │
+│                                                                  │
+│  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓  │
+│  ┃              SERVICES (All from same repo)              ┃  │
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛  │
+│                                                                  │
+│  ┌─────────────────┐          ┌─────────────────┐              │
+│  │  WEB SERVICE    │          │ WORKER SERVICE  │              │
+│  │  ─────────────  │          │  ────────────── │              │
+│  │                 │          │                 │              │
+│  │  Start:         │          │  Start:         │              │
+│  │  npm run start  │          │  npm start:     │              │
+│  │                 │          │       worker    │              │
+│  │                 │          │                 │              │
+│  │  • Next.js      │          │  • FFmpeg       │              │
+│  │  • tRPC API     │          │  • BullMQ       │              │
+│  │  • Auth         │          │  • Video Proc   │              │
+│  │  • Webhooks     │          │  • Email Send   │              │
+│  │                 │          │                 │              │
+│  │  Port: 3000     │          │  Port: None     │              │
+│  │  Public: YES    │          │  Public: NO     │              │
+│  └────────┬────────┘          └────────┬────────┘              │
+│           │                            │                        │
+│           │    ┌──────────┐            │                        │
+│           ├────┤   REDIS  │────────────┤                        │
+│           │    │  (Queue) │            │                        │
+│           │    └──────────┘            │                        │
+│           │                            │                        │
+│           │    ┌──────────┐            │                        │
+│           └────┤PostgreSQL│────────────┘                        │
+│                │(Database)│                                     │
+│                └──────────┘                                     │
+│                                                                  │
+└──────────────────────────────────────────────────────────────────┘
+                          │
+                          │ Internet Access
+                          │
+        ┌─────────────────┴──────────────────┐
+        │                                    │
+   ┌────▼─────┐                    ┌─────────▼────────┐
+   │  USERS   │                    │  CLOUDFLARE R2   │
+   │ (Browser)│                    │  (Video Storage) │
+   └──────────┘                    └──────────────────┘
+
+
+====================================================================
+            HOW IT WORKS
+====================================================================
+
+1. USER UPLOADS VIDEO
+   ├─→ Web service generates presigned R2 URL
+   ├─→ Browser uploads directly to R2
+   ├─→ Web service adds job to Redis queue
+   └─→ Web service returns "Upload successful"
+
+2. WORKER PROCESSES VIDEO
+   ├─→ Worker pulls job from Redis queue
+   ├─→ Worker downloads video from R2
+   ├─→ Worker runs FFmpeg to remove silence
+   ├─→ Worker uploads result to R2
+   ├─→ Worker updates database
+   └─→ Worker sends email notification
+
+3. USER DOWNLOADS VIDEO
+   ├─→ User clicks "Download" in dashboard
+   ├─→ Web service generates presigned R2 URL
+   └─→ Browser downloads directly from R2
+
+
+====================================================================
+            DEPLOYMENT STEPS
+====================================================================
+
+STEP 1: Deploy Web Service
+   │
+   ├─→ Connect GitHub repo to Railway
+   ├─→ Railway auto-creates web service
+   ├─→ Add environment variables
+   └─→ Deploy
+
+STEP 2: Add PostgreSQL
+   │
+   ├─→ Click "+ New" → Database → PostgreSQL
+   └─→ Railway auto-links DATABASE_URL
+
+STEP 3: Add Redis
+   │
+   ├─→ Click "+ New" → Database → Redis
+   └─→ Railway auto-links REDIS_URL
+
+STEP 4: Deploy Worker Service
+   │
+   ├─→ Click "+ New" → GitHub Repo
+   ├─→ Select SAME repository
+   ├─→ Set start command: npm run start:worker
+   ├─→ Copy ALL environment variables from web
+   └─→ Deploy
+
+STEP 5: Test
+   │
+   ├─→ Check web logs: "Server started"
+   ├─→ Check worker logs: "Video processing worker started"
+   ├─→ Upload test video
+   └─→ Verify processing completes
+
+
+====================================================================
+            ENVIRONMENT VARIABLES (Both Services)
+====================================================================
+
+AUTOMATICALLY PROVIDED BY RAILWAY:
+├─→ DATABASE_URL   (from PostgreSQL service)
+└─→ REDIS_URL      (from Redis service)
+
+YOU MUST ADD:
+├─→ NEXTAUTH_SECRET
+├─→ NEXTAUTH_URL
+├─→ GOOGLE_CLIENT_ID
+├─→ GOOGLE_CLIENT_SECRET
+├─→ R2_ACCOUNT_ID
+├─→ R2_ACCESS_KEY_ID
+├─→ R2_SECRET_ACCESS_KEY
+├─→ R2_BUCKET_NAME
+├─→ R2_PUBLIC_URL
+├─→ STRIPE_SECRET_KEY
+├─→ STRIPE_WEBHOOK_SECRET
+├─→ STRIPE_PRICE_ID
+├─→ RESEND_API_KEY
+├─→ EMAIL_FROM
+└─→ NEXT_PUBLIC_APP_URL
+
+
+====================================================================
+            SCALING
+====================================================================
+
+WEB SERVICE SCALING:
+┌─────────────┐
+│ User Traffic│
+└──────┬──────┘
+       │
+  ┌────▼────┐
+  │  Load   │
+  │ Balancer│
+  └────┬────┘
+       │
+   ┌───┴───┬───────┬───────┐
+   │       │       │       │
+┌──▼──┐ ┌──▼──┐ ┌──▼──┐ ┌──▼──┐
+│Web 1│ │Web 2│ │Web 3│ │Web 4│
+└─────┘ └─────┘ └─────┘ └─────┘
+
+WORKER SERVICE SCALING:
+┌─────────────┐
+│ Redis Queue │
+│ [Jobs: 100] │
+└──────┬──────┘
+       │
+   ┌───┴───┬───────┬───────┐
+   │       │       │       │
+┌──▼────┐ ┌▼─────┐ ┌▼─────┐ ┌▼─────┐
+│Work 1 │ │Work 2│ │Work 3│ │Work 4│
+│Job A  │ │Job B │ │Job C │ │Job D │
+└───────┘ └──────┘ └──────┘ └──────┘
+
+More workers = Faster processing!
+
+
+====================================================================
+            COST BREAKDOWN (Approximate)
+====================================================================
+
+Service          Usage         Cost/Month
+─────────────────────────────────────────
+PostgreSQL       Persistent    $5-10
+Redis            Persistent    $5-10
+Web Service      On-demand     $5-15
+Worker Service   On-demand     $10-30
+─────────────────────────────────────────
+TOTAL                          $25-65/month
+
+Note: Scales with usage. Less usage = lower cost.
+
+
+====================================================================
+            MONITORING
+====================================================================
+
+WEB SERVICE LOGS:
+├─→ HTTP requests
+├─→ API calls
+├─→ Authentication events
+└─→ Stripe webhooks
+
+WORKER SERVICE LOGS:
+├─→ "Video processing worker started"
+├─→ "Processing video job <id>"
+├─→ "Job <id> completed"
+└─→ "Job <id> failed: <error>"
+
+DATABASE QUERIES:
+-- Active jobs
+SELECT status, COUNT(*) 
+FROM assignment_video_job 
+GROUP BY status;
+
+-- Failed jobs
+SELECT * FROM assignment_video_job 
+WHERE status = 'failed' 
+ORDER BY "createdAt" DESC;
+
+REDIS QUEUE:
+redis-cli LLEN bull:video-processing:wait
+redis-cli KEYS bull:video-processing:*
+
+
+====================================================================
+            TROUBLESHOOTING
+====================================================================
+
+❌ Worker not starting
+   └─→ Check environment variables
+   └─→ Verify start command: npm run start:worker
+   └─→ Check logs for errors
+
+❌ Jobs stuck in "queued"
+   └─→ Verify worker is running
+   └─→ Check REDIS_URL matches in both services
+   └─→ Restart worker service
+
+❌ Upload fails
+   └─→ Check R2 credentials
+   └─→ Verify CORS configuration
+   └─→ Check R2 bucket permissions
+
+❌ Credits not added after payment
+   └─→ Check Stripe webhook URL
+   └─→ Verify STRIPE_WEBHOOK_SECRET
+   └─→ Review web service logs
+
+❌ No email notifications
+   └─→ Check RESEND_API_KEY
+   └─→ Verify email domain
+   └─→ Review worker logs
+
+
+====================================================================
+

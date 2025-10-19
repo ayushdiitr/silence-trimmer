@@ -1,13 +1,28 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "outDir": "./dist/worker",
     "rootDir": "./src",
-    "noEmit": false
+    "noEmit": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["src/worker/**/*", "src/server/**/*", "src/env.js"],
-  "exclude": ["node_modules", "src/app/**/*", "src/trpc/**/*"]
+  "include": [
+    "src/worker/**/*",
+    "src/server/db/**/*",
+    "src/server/storage/**/*",
+    "src/server/email/**/*",
+    "src/server/queue/**/*",
+    "src/env.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/app/**/*",
+    "src/trpc/**/*",
+    "src/server/api/**/*",
+    "src/server/auth.ts"
+  ]
 }
 
