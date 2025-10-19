@@ -8,6 +8,12 @@ import { signOut } from "next-auth/react";
 
 export function Navigation() {
   const pathname = usePathname();
+  
+  // Don't render during SSR
+  if (typeof window === "undefined") {
+    return null;
+  }
+  
   const { data: session, status } = useSession();
   const { data: workspace } = api.workspace.getById.useQuery(
     {},
