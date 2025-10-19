@@ -1,4 +1,7 @@
-import { postRouter } from "~/server/api/routers/post";
+import { paymentRouter } from "~/server/api/routers/payment";
+// import { postRouter } from "~/server/api/routers/post";
+import { videoRouter } from "~/server/api/routers/video";
+import { workspaceRouter } from "~/server/api/routers/workspace";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 
 /**
@@ -7,7 +10,10 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
-  post: postRouter,
+  // post: postRouter,
+  video: videoRouter,
+  workspace: workspaceRouter,
+  payment: paymentRouter,
 });
 
 // export type definition of API

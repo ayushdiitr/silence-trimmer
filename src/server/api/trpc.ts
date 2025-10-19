@@ -6,11 +6,14 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
+import { and, eq } from "drizzle-orm";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
+import { auth } from "~/server/auth";
 import { db } from "~/server/db";
+import { memberships, workspaces } from "~/server/db/schema";
 
 /**
  * 1. CONTEXT
@@ -25,8 +28,24 @@ import { db } from "~/server/db";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  const session = await auth();
+  const customDomain = opts.headers.get("x-custom-domain");
+
+  // Resolve workspace from custom domain
+  let workspace = null;
+  if (customDomain) {
+    const workspaceResults = await db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.customDomain, customDomain))
+      .limit(1);
+    workspace = workspaceResults[0] ?? null;
+  }
+
   return {
     db,
+    session,
+    workspace,
     ...opts,
   };
 };
@@ -104,3 +123,90 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
+
+/**
+ * Protected (authenticated) procedure
+ *
+ * If you want a query or mutation to ONLY be accessible to logged in users, use this. It verifies
+ * the session is valid and guarantees `ctx.session.user` is not null.
+ */
+export const protectedProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(({ ctx, next }) => {
+    if (!ctx.session?.user) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    return next({
+      ctx: {
+        session: { ...ctx.session, user: ctx.session.user },
+      },
+    });
+  });
+
+/**
+ * Workspace procedure
+ *
+ * Ensures the user is authenticated and has access to a workspace. If on a custom domain,
+ * the workspace is resolved from the domain. Otherwise, you need to pass workspaceId.
+ */
+export const workspaceProcedure = protectedProcedure.use(async ({ ctx, next, input }) => {
+  const typedInput = input as { workspaceId?: string } | undefined;
+  let workspaceId = typedInput?.workspaceId ?? ctx.workspace?.id;
+
+  // If no workspace in context and no workspaceId provided, get user's first workspace
+  if (!workspaceId) {
+    const userMemberships = await ctx.db
+      .select({ workspaceId: memberships.workspaceId })
+      .from(memberships)
+      .where(eq(memberships.userId, ctx.session.user.id))
+      .limit(1);
+
+    if (userMemberships.length === 0) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "No workspace found for user",
+      });
+    }
+    workspaceId = userMemberships[0]!.workspaceId;
+  }
+
+  // Verify user has access to this workspace
+  const membership = await ctx.db
+    .select()
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.userId, ctx.session.user.id),
+        eq(memberships.workspaceId, workspaceId)
+      )
+    )
+    .limit(1);
+
+  if (membership.length === 0) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You don't have access to this workspace",
+    });
+  }
+
+  // Get full workspace data
+  const workspaceData = await ctx.db
+    .select()
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId))
+    .limit(1);
+
+  if (workspaceData.length === 0) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Workspace not found",
+    });
+  }
+
+  return next({
+    ctx: {
+      workspace: workspaceData[0]!,
+      membership: membership[0]!,
+    },
+  });
+});
