@@ -8,21 +8,20 @@ import { signOut } from "next-auth/react";
 
 export function Navigation() {
   const pathname = usePathname();
-  
-  // Don't render during SSR
-  if (typeof window === "undefined") {
-    return null;
-  }
-  
   const { data: session, status } = useSession();
   const { data: workspace } = api.workspace.getById.useQuery(
     {},
     {
       retry: false,
       refetchOnWindowFocus: false,
-      enabled: !!session, // Only fetch workspace if user is logged in
+      enabled: !!session && typeof window !== "undefined", // Only fetch workspace if user is logged in and on client
     },
   );
+
+  // Don't render during SSR
+  if (typeof window === "undefined") {
+    return null;
+  }
 
   // Don't show nav on auth pages or landing page
   if (pathname?.startsWith("/auth") || pathname === "/") {

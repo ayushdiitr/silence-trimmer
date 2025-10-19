@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { auth } from "~/server/auth";
 
-export default auth(async (req) => {
+export const runtime = "nodejs"; // Force Node.js runtime instead of Edge
+
+export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const host = req.headers.get("host") ?? "";
 
@@ -28,7 +29,7 @@ export default auth(async (req) => {
       headers: requestHeaders,
     },
   });
-}) as any;
+}
 
 export const config = {
   matcher: [
