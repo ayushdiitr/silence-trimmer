@@ -10,10 +10,11 @@ export default function DashboardPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const previousJobsRef = useRef<Map<string, string>>(new Map());
 
-  const { data: credits, refetch: refetchCredits } = api.video.getCredits.useQuery({});
+  const { data: credits, refetch: refetchCredits } =
+    api.video.getCredits.useQuery({});
   const { data: jobs, refetch: refetchJobs } = api.video.getJobs.useQuery(
     { limit: 10 },
-    { refetchInterval: 5000 } // Poll every 5 seconds
+    { refetchInterval: 5000 }, // Poll every 5 seconds
   );
 
   const createUploadUrl = api.video.createUploadUrl.useMutation();
@@ -27,7 +28,7 @@ export default function DashboardPage() {
 
     jobs.forEach((job) => {
       const previousStatus = previousJobsRef.current.get(job.id);
-      
+
       // If this is a new job or status changed
       if (previousStatus && previousStatus !== job.status) {
         if (job.status === "completed") {
@@ -35,13 +36,15 @@ export default function DashboardPage() {
             description: `${job.originalFilename} is ready to download`,
             action: {
               label: "Download",
-              onClick: () => window.location.href = `/dashboard/jobs/${job.id}`,
+              onClick: () =>
+                (window.location.href = `/dashboard/jobs/${job.id}`),
             },
             duration: 10000,
           });
         } else if (job.status === "failed") {
           toast.error(`Video processing failed`, {
-            description: job.error || `${job.originalFilename} could not be processed`,
+            description:
+              job.error || `${job.originalFilename} could not be processed`,
             duration: 10000,
           });
         } else if (job.status === "processing") {
@@ -50,7 +53,7 @@ export default function DashboardPage() {
           });
         }
       }
-      
+
       // Update the previous status
       previousJobsRef.current.set(job.id, job.status);
     });
@@ -80,11 +83,12 @@ export default function DashboardPage() {
       setUploadProgress(0);
 
       // Get upload URL
-      const { uploadUrl, jobId, fileKey, contentType } = await createUploadUrl.mutateAsync({
-        filename: selectedFile.name,
-        fileSize: selectedFile.size,
-        fileType: selectedFile.type || "application/octet-stream",
-      });
+      const { uploadUrl, jobId, fileKey, contentType } =
+        await createUploadUrl.mutateAsync({
+          filename: selectedFile.name,
+          fileSize: selectedFile.size,
+          fileType: selectedFile.type || "application/octet-stream",
+        });
 
       // Upload to R2
       setUploadProgress(30);
@@ -121,13 +125,17 @@ export default function DashboardPage() {
       await refetchJobs();
 
       toast.success("Video uploaded successfully!", {
-        description: "Processing will begin shortly. You'll be notified when it's ready.",
+        description:
+          "Processing will begin shortly. You'll be notified when it's ready.",
         duration: 5000,
       });
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("Upload failed", {
-        description: error instanceof Error ? error.message : "An error occurred during upload",
+        description:
+          error instanceof Error
+            ? error.message
+            : "An error occurred during upload",
       });
       setUploading(false);
     }
@@ -165,7 +173,8 @@ export default function DashboardPage() {
           } catch (error) {
             console.error("Retry error:", error);
             toast.error("Retry failed", {
-              description: error instanceof Error ? error.message : "Failed to retry job",
+              description:
+                error instanceof Error ? error.message : "Failed to retry job",
             });
           }
         },
@@ -221,7 +230,9 @@ export default function DashboardPage() {
 
         {/* Upload Section */}
         <div className="mb-8 rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900">Upload Video</h2>
+          <h2 className="mb-4 text-xl font-semibold text-gray-900">
+            Upload Video
+          </h2>
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <label className="flex-1">
@@ -283,7 +294,9 @@ export default function DashboardPage() {
 
             <button
               onClick={handleUpload}
-              disabled={!selectedFile || uploading || (credits?.credits ?? 0) <= 0}
+              disabled={
+                !selectedFile || uploading || (credits?.credits ?? 0) <= 0
+              }
               className="w-full rounded-lg bg-purple-600 px-4 py-3 font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {uploading
@@ -297,9 +310,13 @@ export default function DashboardPage() {
 
         {/* Jobs List */}
         <div className="rounded-lg bg-white p-6 shadow">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900">Recent Jobs</h2>
+          <h2 className="mb-4 text-xl font-semibold text-gray-900">
+            Recent Jobs
+          </h2>
           {!jobs || jobs.length === 0 ? (
-            <p className="py-8 text-center text-gray-500">No videos uploaded yet</p>
+            <p className="py-8 text-center text-gray-500">
+              No videos uploaded yet
+            </p>
           ) : (
             <div className="space-y-3">
               {jobs.map((job) => (
@@ -308,7 +325,9 @@ export default function DashboardPage() {
                   className="flex items-center justify-between rounded-lg border border-gray-200 p-4 transition hover:border-purple-300"
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{job.originalFilename}</p>
+                    <p className="font-medium text-gray-900">
+                      {job.originalFilename}
+                    </p>
                     <p className="text-sm text-gray-500">
                       {new Date(job.createdAt).toLocaleString()}
                     </p>
@@ -351,4 +370,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

@@ -8,37 +8,67 @@ import { index, pgEnum, pgTableCreator } from "drizzle-orm/pg-core";
 export const createTable = pgTableCreator((name) => `assignment_${name}`);
 
 // Enums
-export const membershipRoleEnum = pgEnum("membership_role", ["owner", "member"]);
-export const videoJobStatusEnum = pgEnum("video_job_status", ["queued", "processing", "completed", "failed"]);
-export const paymentStatusEnum = pgEnum("payment_status", ["pending", "completed", "failed"]);
+export const membershipRoleEnum = pgEnum("membership_role", [
+  "owner",
+  "member",
+]);
+export const videoJobStatusEnum = pgEnum("video_job_status", [
+  "queued",
+  "processing",
+  "completed",
+  "failed",
+]);
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pending",
+  "completed",
+  "failed",
+]);
 
 // Users table
 export const users = createTable(
   "user",
   (d) => ({
-    id: d.text().primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: d
+      .text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     email: d.varchar({ length: 255 }).notNull().unique(),
     name: d.varchar({ length: 255 }),
     image: d.text(),
     googleId: d.varchar({ length: 255 }).unique(),
-    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
   }),
-  (t) => [index("user_email_idx").on(t.email), index("user_google_id_idx").on(t.googleId)],
+  (t) => [
+    index("user_email_idx").on(t.email),
+    index("user_google_id_idx").on(t.googleId),
+  ],
 );
 
 // Workspaces table
 export const workspaces = createTable(
   "workspace",
   (d) => ({
-    id: d.text().primaryKey().$defaultFn(() => crypto.randomUUID()),
+    id: d
+      .text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     name: d.varchar({ length: 255 }).notNull(),
     slug: d.varchar({ length: 255 }).notNull().unique(),
     logoUrl: d.text(),
     primaryColor: d.varchar({ length: 7 }).default("#7c3aed"), // Default purple
     customDomain: d.varchar({ length: 255 }).unique(),
     credits: d.integer().notNull().default(1),
-    ownerId: d.text().notNull().references(() => users.id, { onDelete: "cascade" }),
-    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    ownerId: d
+      .text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
   }),
   (t) => [
     index("workspace_slug_idx").on(t.slug),
@@ -51,11 +81,23 @@ export const workspaces = createTable(
 export const memberships = createTable(
   "membership",
   (d) => ({
-    id: d.text().primaryKey().$defaultFn(() => crypto.randomUUID()),
-    userId: d.text().notNull().references(() => users.id, { onDelete: "cascade" }),
-    workspaceId: d.text().notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    id: d
+      .text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: d
+      .text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     role: membershipRoleEnum().notNull().default("member"),
-    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
   }),
   (t) => [
     index("membership_user_idx").on(t.userId),
@@ -68,9 +110,18 @@ export const memberships = createTable(
 export const videoJobs = createTable(
   "video_job",
   (d) => ({
-    id: d.text().primaryKey().$defaultFn(() => crypto.randomUUID()),
-    workspaceId: d.text().notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-    userId: d.text().notNull().references(() => users.id, { onDelete: "cascade" }),
+    id: d
+      .text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    workspaceId: d
+      .text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: d
+      .text()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     status: videoJobStatusEnum().notNull().default("queued"),
     inputFileKey: d.text().notNull(),
     outputFileKey: d.text(),
@@ -78,7 +129,10 @@ export const videoJobs = createTable(
     fileSize: d.integer(), // in bytes
     duration: d.integer(), // in seconds
     error: d.text(),
-    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
     completedAt: d.timestamp({ withTimezone: true }),
   }),
   (t) => [
@@ -93,13 +147,22 @@ export const videoJobs = createTable(
 export const payments = createTable(
   "payment",
   (d) => ({
-    id: d.text().primaryKey().$defaultFn(() => crypto.randomUUID()),
-    workspaceId: d.text().notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    id: d
+      .text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    workspaceId: d
+      .text()
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     stripeSessionId: d.varchar({ length: 255 }).notNull().unique(),
     amount: d.integer().notNull(), // in cents
     creditsAdded: d.integer().notNull(),
     status: paymentStatusEnum().notNull().default("pending"),
-    createdAt: d.timestamp({ withTimezone: true }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+    createdAt: d
+      .timestamp({ withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
   }),
   (t) => [
     index("payment_workspace_idx").on(t.workspaceId),

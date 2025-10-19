@@ -6,11 +6,13 @@ export default auth(async (req) => {
   const host = req.headers.get("host") ?? "";
 
   // Get the main app URL domain
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "";
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "";
   const mainDomain = appUrl.replace(/^https?:\/\//, "").split(":")[0];
 
   // Check if this is a custom domain (not the main domain)
-  const isCustomDomain = !host.includes(mainDomain ?? "") && !host.includes("localhost");
+  const isCustomDomain =
+    !host.includes(mainDomain ?? "") && !host.includes("localhost");
 
   // Clone the request headers
   const requestHeaders = new Headers(req.headers);
@@ -39,4 +41,3 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };
-

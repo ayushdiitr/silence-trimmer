@@ -34,7 +34,8 @@ export const videoRouter = createTRPCRouter({
       if (ctx.workspace.credits <= 0) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Insufficient credits. Please purchase more credits to continue.",
+          message:
+            "Insufficient credits. Please purchase more credits to continue.",
         });
       }
 
@@ -54,7 +55,11 @@ export const videoRouter = createTRPCRouter({
       const contentType = input.fileType || "application/octet-stream";
 
       // Generate presigned upload URL (valid for 1 hour)
-      const uploadUrl = await generatePresignedUploadUrl(fileKey, contentType, 3600);
+      const uploadUrl = await generatePresignedUploadUrl(
+        fileKey,
+        contentType,
+        3600,
+      );
 
       return {
         jobId,
@@ -158,8 +163,8 @@ export const videoRouter = createTRPCRouter({
         .where(
           and(
             eq(videoJobs.id, input.jobId),
-            eq(videoJobs.workspaceId, ctx.workspace.id)
-          )
+            eq(videoJobs.workspaceId, ctx.workspace.id),
+          ),
         )
         .limit(1);
 
@@ -175,7 +180,10 @@ export const videoRouter = createTRPCRouter({
       // Generate download URL if job is completed
       let downloadUrl = null;
       if (job.status === "completed" && job.outputFileKey) {
-        downloadUrl = await generatePresignedDownloadUrl(job.outputFileKey, 86400); // 24 hours
+        downloadUrl = await generatePresignedDownloadUrl(
+          job.outputFileKey,
+          86400,
+        ); // 24 hours
       }
 
       return {
@@ -217,8 +225,8 @@ export const videoRouter = createTRPCRouter({
         .where(
           and(
             eq(videoJobs.id, input.jobId),
-            eq(videoJobs.workspaceId, ctx.workspace.id)
-          )
+            eq(videoJobs.workspaceId, ctx.workspace.id),
+          ),
         )
         .limit(1);
 
@@ -243,7 +251,8 @@ export const videoRouter = createTRPCRouter({
       if (ctx.workspace.credits <= 0) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "Insufficient credits. Please purchase more credits to retry.",
+          message:
+            "Insufficient credits. Please purchase more credits to retry.",
         });
       }
 
@@ -279,4 +288,3 @@ export const videoRouter = createTRPCRouter({
       };
     }),
 });
-

@@ -16,7 +16,9 @@ interface VideoCompletedEmailParams {
 /**
  * Send video completion notification email
  */
-export async function sendVideoCompletedEmail(params: VideoCompletedEmailParams) {
+export async function sendVideoCompletedEmail(
+  params: VideoCompletedEmailParams,
+) {
   const {
     to,
     userName,
@@ -161,4 +163,3 @@ export async function sendVideoFailedEmail(params: VideoFailedEmailParams) {
     throw error;
   }
 }
-

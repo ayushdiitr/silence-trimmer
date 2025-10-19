@@ -87,7 +87,10 @@ export async function getFileStream(key: string) {
  * @param key - The S3 key (path) for the file
  * @param body - The file content
  */
-export async function uploadFile(key: string, body: Buffer | Uint8Array | string) {
+export async function uploadFile(
+  key: string,
+  body: Buffer | Uint8Array | string,
+) {
   const command = new PutObjectCommand({
     Bucket: env.R2_BUCKET_NAME,
     Key: key,
@@ -104,4 +107,3 @@ export async function uploadFile(key: string, body: Buffer | Uint8Array | string
 export function getPublicUrl(key: string): string {
   return `${env.R2_PUBLIC_URL}/${key}`;
 }
-

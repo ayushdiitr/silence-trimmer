@@ -43,9 +43,10 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        
-        const workspaceId = session.metadata?.workspaceId ?? session.client_reference_id;
-        
+
+        const workspaceId =
+          session.metadata?.workspaceId ?? session.client_reference_id;
+
         if (!workspaceId) {
           console.error("No workspace ID in session metadata");
           return NextResponse.json(
@@ -80,18 +81,20 @@ export async function POST(req: NextRequest) {
           status: "completed",
         });
 
-        console.log(`Added ${creditsToAdd} credits to workspace ${workspaceId}`);
+        console.log(
+          `Added ${creditsToAdd} credits to workspace ${workspaceId}`,
+        );
         break;
       }
 
       case "payment_intent.succeeded": {
         // Backup handler for when checkout.session.completed is not received
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        
+
         // Get the checkout session from the payment intent
         if (paymentIntent.metadata?.workspaceId) {
           const workspaceId = paymentIntent.metadata.workspaceId;
-          
+
           // Check if we already processed this payment
           const existingPayment = await db
             .select()
@@ -125,13 +128,19 @@ export async function POST(req: NextRequest) {
                 status: "completed",
               });
 
-              console.log(`[payment_intent.succeeded] Added ${creditsToAdd} credits to workspace ${workspaceId}`);
+              console.log(
+                `[payment_intent.succeeded] Added ${creditsToAdd} credits to workspace ${workspaceId}`,
+              );
             }
           } else {
-            console.log(`[payment_intent.succeeded] Payment already processed: ${paymentIntent.id}`);
+            console.log(
+              `[payment_intent.succeeded] Payment already processed: ${paymentIntent.id}`,
+            );
           }
         } else {
-          console.log(`[payment_intent.succeeded] No workspace ID in payment intent metadata`);
+          console.log(
+            `[payment_intent.succeeded] No workspace ID in payment intent metadata`,
+          );
         }
         break;
       }
@@ -139,7 +148,8 @@ export async function POST(req: NextRequest) {
       case "checkout.session.expired":
       case "checkout.session.async_payment_failed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const workspaceId = session.metadata?.workspaceId ?? session.client_reference_id;
+        const workspaceId =
+          session.metadata?.workspaceId ?? session.client_reference_id;
 
         if (workspaceId) {
           // Create failed payment record
@@ -167,4 +177,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

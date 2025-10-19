@@ -149,64 +149,66 @@ export const protectedProcedure = t.procedure
  * Ensures the user is authenticated and has access to a workspace. If on a custom domain,
  * the workspace is resolved from the domain. Otherwise, you need to pass workspaceId.
  */
-export const workspaceProcedure = protectedProcedure.use(async ({ ctx, next, input }) => {
-  const typedInput = input as { workspaceId?: string } | undefined;
-  let workspaceId = typedInput?.workspaceId ?? ctx.workspace?.id;
+export const workspaceProcedure = protectedProcedure.use(
+  async ({ ctx, next, input }) => {
+    const typedInput = input as { workspaceId?: string } | undefined;
+    let workspaceId = typedInput?.workspaceId ?? ctx.workspace?.id;
 
-  // If no workspace in context and no workspaceId provided, get user's first workspace
-  if (!workspaceId) {
-    const userMemberships = await ctx.db
-      .select({ workspaceId: memberships.workspaceId })
+    // If no workspace in context and no workspaceId provided, get user's first workspace
+    if (!workspaceId) {
+      const userMemberships = await ctx.db
+        .select({ workspaceId: memberships.workspaceId })
+        .from(memberships)
+        .where(eq(memberships.userId, ctx.session.user.id))
+        .limit(1);
+
+      if (userMemberships.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No workspace found for user",
+        });
+      }
+      workspaceId = userMemberships[0]!.workspaceId;
+    }
+
+    // Verify user has access to this workspace
+    const membership = await ctx.db
+      .select()
       .from(memberships)
-      .where(eq(memberships.userId, ctx.session.user.id))
+      .where(
+        and(
+          eq(memberships.userId, ctx.session.user.id),
+          eq(memberships.workspaceId, workspaceId),
+        ),
+      )
       .limit(1);
 
-    if (userMemberships.length === 0) {
+    if (membership.length === 0) {
       throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "No workspace found for user",
+        code: "FORBIDDEN",
+        message: "You don't have access to this workspace",
       });
     }
-    workspaceId = userMemberships[0]!.workspaceId;
-  }
 
-  // Verify user has access to this workspace
-  const membership = await ctx.db
-    .select()
-    .from(memberships)
-    .where(
-      and(
-        eq(memberships.userId, ctx.session.user.id),
-        eq(memberships.workspaceId, workspaceId)
-      )
-    )
-    .limit(1);
+    // Get full workspace data
+    const workspaceData = await ctx.db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
 
-  if (membership.length === 0) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "You don't have access to this workspace",
+    if (workspaceData.length === 0) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Workspace not found",
+      });
+    }
+
+    return next({
+      ctx: {
+        workspace: workspaceData[0]!,
+        membership: membership[0]!,
+      },
     });
-  }
-
-  // Get full workspace data
-  const workspaceData = await ctx.db
-    .select()
-    .from(workspaces)
-    .where(eq(workspaces.id, workspaceId))
-    .limit(1);
-
-  if (workspaceData.length === 0) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Workspace not found",
-    });
-  }
-
-  return next({
-    ctx: {
-      workspace: workspaceData[0]!,
-      membership: membership[0]!,
-    },
-  });
-});
+  },
+);

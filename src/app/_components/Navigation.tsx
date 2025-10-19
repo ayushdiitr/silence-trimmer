@@ -9,11 +9,14 @@ import { signOut } from "next-auth/react";
 export function Navigation() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const { data: workspace } = api.workspace.getById.useQuery({}, {
-    retry: false,
-    refetchOnWindowFocus: false,
-    enabled: !!session, // Only fetch workspace if user is logged in
-  });
+  const { data: workspace } = api.workspace.getById.useQuery(
+    {},
+    {
+      retry: false,
+      refetchOnWindowFocus: false,
+      enabled: !!session, // Only fetch workspace if user is logged in
+    },
+  );
 
   // Don't show nav on auth pages or landing page
   if (pathname?.startsWith("/auth") || pathname === "/") {
@@ -89,7 +92,7 @@ export function Navigation() {
             >
               Settings
             </Link>
-            
+
             {/* User Info & Sign Out */}
             <div className="flex items-center gap-4 border-l border-gray-200 pl-6">
               {session?.user && (
@@ -135,4 +138,3 @@ export function Navigation() {
     </nav>
   );
 }
-

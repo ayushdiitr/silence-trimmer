@@ -14,7 +14,11 @@ export default async function Home() {
       <main className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">Redirecting to dashboard...</p>
-          <script dangerouslySetInnerHTML={{ __html: "window.location.href='/dashboard'" }} />
+          <script
+            dangerouslySetInnerHTML={{
+              __html: "window.location.href='/dashboard'",
+            }}
+          />
         </div>
       </main>
     );
@@ -23,7 +27,7 @@ export default async function Home() {
   // Check if this is a custom domain
   const headersList = await headers();
   const customDomain = headersList.get("x-custom-domain");
-  
+
   // Get workspace branding if custom domain
   let workspace = null;
   if (customDomain) {
@@ -57,7 +61,7 @@ export default async function Home() {
   const gradientTo = `rgb(${Math.max(0, rgb.r - 50)}, ${Math.max(0, rgb.g - 50)}, ${Math.max(0, rgb.b - 50)})`;
 
   return (
-    <main 
+    <main
       className="min-h-screen bg-gradient-to-b"
       style={{
         backgroundImage: `linear-gradient(to bottom, ${gradientFrom}, ${gradientTo})`,
@@ -87,9 +91,9 @@ export default async function Home() {
             )}
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-xl text-white/90">
-            Upload your video, and we&apos;ll automatically detect and remove all silent
-            parts, then stitch it back together. Perfect for content creators,
-            educators, and professionals.
+            Upload your video, and we&apos;ll automatically detect and remove
+            all silent parts, then stitch it back together. Perfect for content
+            creators, educators, and professionals.
           </p>
           <div className="mt-10 flex items-center justify-center gap-4">
             <Link
@@ -112,7 +116,7 @@ export default async function Home() {
         <div id="features" className="mt-32">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="rounded-xl bg-white/10 p-8 backdrop-blur">
-              <div 
+              <div
                 className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg"
                 style={{ backgroundColor: brandColor }}
               >
@@ -130,17 +134,15 @@ export default async function Home() {
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-white">
-                Lightning Fast
-              </h3>
+              <h3 className="text-xl font-bold text-white">Lightning Fast</h3>
               <p className="mt-2 text-white/80">
-                Process videos quickly with our optimized FFmpeg pipeline. Get your
-                edited video in minutes.
+                Process videos quickly with our optimized FFmpeg pipeline. Get
+                your edited video in minutes.
               </p>
             </div>
 
             <div className="rounded-xl bg-white/10 p-8 backdrop-blur">
-              <div 
+              <div
                 className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg"
                 style={{ backgroundColor: brandColor }}
               >
@@ -158,17 +160,15 @@ export default async function Home() {
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-white">
-                Smart Detection
-              </h3>
+              <h3 className="text-xl font-bold text-white">Smart Detection</h3>
               <p className="mt-2 text-white/80">
-                Advanced silence detection removes awkward pauses while preserving
-                your content&apos;s flow.
+                Advanced silence detection removes awkward pauses while
+                preserving your content&apos;s flow.
               </p>
             </div>
 
             <div className="rounded-xl bg-white/10 p-8 backdrop-blur">
-              <div 
+              <div
                 className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg"
                 style={{ backgroundColor: brandColor }}
               >
@@ -186,12 +186,10 @@ export default async function Home() {
                   />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-white">
-                Secure & Private
-              </h3>
+              <h3 className="text-xl font-bold text-white">Secure & Private</h3>
               <p className="mt-2 text-white/80">
-                Your videos are processed securely and deleted after download. We
-                respect your privacy.
+                Your videos are processed securely and deleted after download.
+                We respect your privacy.
               </p>
             </div>
           </div>

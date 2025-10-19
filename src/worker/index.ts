@@ -44,7 +44,9 @@ async function downloadFromR2(key: string, outputPath: string): Promise<void> {
 /**
  * Parse FFmpeg silence detection output
  */
-function parseSilenceDetection(stderr: string): Array<{ start: number; end: number }> {
+function parseSilenceDetection(
+  stderr: string,
+): Array<{ start: number; end: number }> {
   const silences: Array<{ start: number; end: number }> = [];
   const lines = stderr.split("\n");
 
@@ -114,7 +116,9 @@ async function getVideoDuration(inputPath: string): Promise<number> {
 /**
  * Detect silences in video using FFmpeg
  */
-async function detectSilences(inputPath: string): Promise<Array<{ start: number; end: number }>> {
+async function detectSilences(
+  inputPath: string,
+): Promise<Array<{ start: number; end: number }>> {
   return new Promise((resolve, reject) => {
     const ffmpeg = spawn("ffmpeg", [
       "-i",
@@ -177,7 +181,10 @@ function buildNonSilentSegments(
 /**
  * Process video by removing silences
  */
-async function processVideo(inputPath: string, outputPath: string): Promise<void> {
+async function processVideo(
+  inputPath: string,
+  outputPath: string,
+): Promise<void> {
   // Get video duration
   const duration = await getVideoDuration(inputPath);
   console.log(`Video duration: ${duration}s`);
@@ -190,7 +197,13 @@ async function processVideo(inputPath: string, outputPath: string): Promise<void
   if (silences.length === 0) {
     console.log("No silences detected, copying original file");
     return new Promise((resolve, reject) => {
-      const ffmpeg = spawn("ffmpeg", ["-i", inputPath, "-c", "copy", outputPath]);
+      const ffmpeg = spawn("ffmpeg", [
+        "-i",
+        inputPath,
+        "-c",
+        "copy",
+        outputPath,
+      ]);
 
       ffmpeg.on("close", (code) => {
         if (code === 0) resolve();
@@ -230,7 +243,10 @@ async function processVideo(inputPath: string, outputPath: string): Promise<void
 
       ffmpeg.on("close", (code) => {
         if (code === 0) resolve();
-        else reject(new Error(`FFmpeg segment extraction failed with code ${code}`));
+        else
+          reject(
+            new Error(`FFmpeg segment extraction failed with code ${code}`),
+          );
       });
 
       ffmpeg.on("error", reject);
@@ -239,7 +255,9 @@ async function processVideo(inputPath: string, outputPath: string): Promise<void
 
   // Create concat file
   const concatContent = segmentPaths.map((p) => `file '${p}'`).join("\n");
-  await import("fs/promises").then((fs) => fs.writeFile(concatFilePath, concatContent));
+  await import("fs/promises").then((fs) =>
+    fs.writeFile(concatFilePath, concatContent),
+  );
 
   // Concatenate segments
   await new Promise<void>((resolve, reject) => {
@@ -274,7 +292,8 @@ async function processVideo(inputPath: string, outputPath: string): Promise<void
  * Worker processor function
  */
 async function processVideoJob(job: Job<VideoProcessingJobData>) {
-  const { jobId, workspaceId, userId, inputFileKey, originalFilename } = job.data;
+  const { jobId, workspaceId, userId, inputFileKey, originalFilename } =
+    job.data;
 
   console.log(`Processing video job ${jobId} (BullMQ ID: ${job.id})`);
 
@@ -298,7 +317,9 @@ async function processVideoJob(job: Job<VideoProcessingJobData>) {
     // Upload output file
     const outputFileKey = `videos/output/${workspaceId}/${jobId}/${originalFilename}`;
     console.log(`Uploading output file to R2: ${outputFileKey}`);
-    const outputBuffer = await import("fs/promises").then((fs) => fs.readFile(outputPath));
+    const outputBuffer = await import("fs/promises").then((fs) =>
+      fs.readFile(outputPath),
+    );
     await uploadFile(outputFileKey, outputBuffer);
 
     // Get video duration for the record (rounded to nearest second)
@@ -317,7 +338,11 @@ async function processVideoJob(job: Job<VideoProcessingJobData>) {
       .where(eq(videoJobs.id, jobId));
 
     // Get user and workspace info for email
-    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
     const workspace = await db
       .select()
       .from(workspaces)
@@ -340,13 +365,17 @@ async function processVideoJob(job: Job<VideoProcessingJobData>) {
     }
 
     // Cleanup temp files
-    await Promise.all([unlink(inputPath).catch(() => {}), unlink(outputPath).catch(() => {})]);
+    await Promise.all([
+      unlink(inputPath).catch(() => {}),
+      unlink(outputPath).catch(() => {}),
+    ]);
 
     console.log(`Job ${jobId} completed successfully`);
   } catch (error) {
     console.error(`Job ${jobId} failed:`, error);
 
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
 
     // Update job status to failed
     await db
@@ -373,7 +402,11 @@ async function processVideoJob(job: Job<VideoProcessingJobData>) {
     }
 
     // Send failure email
-    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
     const workspaceData = workspace[0];
 
     if (user.length > 0 && user[0]!.email && workspaceData) {
@@ -391,14 +424,18 @@ async function processVideoJob(job: Job<VideoProcessingJobData>) {
 }
 
 // Create and start the worker
-const worker = new Worker<VideoProcessingJobData>("video-processing", processVideoJob, {
-  connection,
-  concurrency: 2, // Process 2 videos at a time
-  limiter: {
-    max: 10, // Max 10 jobs
-    duration: 60000, // per minute
+const worker = new Worker<VideoProcessingJobData>(
+  "video-processing",
+  processVideoJob,
+  {
+    connection,
+    concurrency: 2, // Process 2 videos at a time
+    limiter: {
+      max: 10, // Max 10 jobs
+      duration: 60000, // per minute
+    },
   },
-});
+);
 
 worker.on("completed", (job) => {
   console.log(`Job ${job.id} completed`);
@@ -430,4 +467,3 @@ process.on("SIGINT", async () => {
   await connection.quit();
   process.exit(0);
 });
-
