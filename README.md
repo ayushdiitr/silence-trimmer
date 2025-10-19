@@ -28,15 +28,25 @@ A full-stack SaaS application that automatically removes silences from videos us
 
 ## Documentation
 
-📚 **Comprehensive guides available:**
+📚 **Start here:**
 
-- **[SETUP.md](./SETUP.md)** - Local development setup
-- **[RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)** - Full Railway deployment guide
-- **[RAILWAY_WORKER_SETUP.md](./RAILWAY_WORKER_SETUP.md)** - ⭐ Quick worker deployment guide
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture & data flow
-- **[WORKER_DEPLOYMENT.md](./WORKER_DEPLOYMENT.md)** - Worker deployment options (Docker, PM2, Systemd)
-- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
-- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference for common tasks
+### Getting Started
+- **[SETUP.md](./SETUP.md)** - ⚡ Local development setup (START HERE for development)
+- **[RAILWAY_WORKER_QUICK_START.md](./RAILWAY_WORKER_QUICK_START.md)** - ⚡ 5-minute Railway worker setup (START HERE for deployment)
+
+### Deployment Guides
+- **[DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md)** - 📋 Complete deployment overview
+- **[RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)** - 🚂 Full Railway deployment guide
+- **[RAILWAY_WORKER_SETUP.md](./RAILWAY_WORKER_SETUP.md)** - 🔧 Detailed worker setup & troubleshooting
+- **[WORKER_DEPLOYMENT.md](./WORKER_DEPLOYMENT.md)** - 🐳 Alternative deployments (Docker, PM2, Systemd)
+
+### Technical Documentation
+- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - 🏗️ System architecture & data flow diagrams
+- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - 📖 Technical implementation details
+- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - 📝 Quick reference for common tasks
+- **[WORKER_TYPESCRIPT_FIX.md](./WORKER_TYPESCRIPT_FIX.md)** - 🔨 TypeScript configuration fix
+- **[RAILWAY_FFMPEG_FIX.md](./RAILWAY_FFMPEG_FIX.md)** - 🎬 Fix FFmpeg not found error
+- **[FIX_RAILWAY_NOW.md](./FIX_RAILWAY_NOW.md)** - ⚡ Quick FFmpeg fix (2 minutes)
 
 ## Project Structure
 
@@ -68,6 +78,16 @@ src/
 │   └── index.ts             # Video processing worker
 ├── trpc/                    # tRPC React client
 └── env.js                   # Environment validation
+```
+
+### Architecture Overview
+
+```
+Railway Project
+├── PostgreSQL (database)
+├── Redis (job queue)
+├── Web Service (Next.js) ← Handles HTTP requests
+└── Worker Service (FFmpeg) ← Processes videos in background
 ```
 
 ## Getting Started
