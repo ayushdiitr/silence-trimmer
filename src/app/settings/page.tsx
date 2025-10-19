@@ -4,6 +4,9 @@ import { useState } from "react";
 import { api } from "~/trpc/react";
 import { toast } from "sonner";
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = "force-dynamic";
+
 export default function SettingsPage() {
   const { data: workspaces } = api.workspace.getMyWorkspaces.useQuery();
   const { data: currentWorkspace, refetch } = api.workspace.getById.useQuery(

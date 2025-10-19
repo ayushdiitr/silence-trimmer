@@ -4,6 +4,9 @@ import { useParams } from "next/navigation";
 import { useEffect } from "react";
 import { api } from "~/trpc/react";
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = "force-dynamic";
+
 export default function JobDetailPage() {
   const params = useParams();
   const jobId = params.id as string;

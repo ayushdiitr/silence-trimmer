@@ -4,6 +4,9 @@ import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { api } from "~/trpc/react";
 
+// Force dynamic rendering (don't prerender at build time)
+export const dynamic = "force-dynamic";
+
 export default function DashboardPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
