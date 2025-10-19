@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { api } from "~/trpc/react";
-import {toast} from 'sonner';
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const { data: workspaces } = api.workspace.getMyWorkspaces.useQuery();
-  const { data: currentWorkspace, refetch } = api.workspace.getById.useQuery({});
+  const { data: currentWorkspace, refetch } = api.workspace.getById.useQuery(
+    {},
+  );
   const updateWorkspace = api.workspace.update.useMutation();
 
   const [name, setName] = useState("");
@@ -41,7 +43,9 @@ export default function SettingsPage() {
       toast.success("Settings saved successfully!");
     } catch (error) {
       console.error("Save error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save settings");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save settings",
+      );
     } finally {
       setSaving(false);
     }
@@ -85,7 +89,7 @@ export default function SettingsPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
                 placeholder="My Workspace"
               />
             </div>
@@ -99,7 +103,7 @@ export default function SettingsPage() {
                 type="url"
                 value={logoUrl}
                 onChange={(e) => setLogoUrl(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
                 placeholder="https://example.com/logo.png"
               />
               <p className="mt-1 text-sm text-gray-500">
@@ -136,7 +140,7 @@ export default function SettingsPage() {
                   type="text"
                   value={primaryColor}
                   onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                  className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
                   placeholder="#7c3aed"
                   pattern="^#[0-9A-Fa-f]{6}$"
                 />
@@ -155,7 +159,7 @@ export default function SettingsPage() {
                 type="text"
                 value={customDomain}
                 onChange={(e) => setCustomDomain(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
                 placeholder="videos.yourdomain.com"
               />
               <p className="mt-1 text-sm text-gray-500">
@@ -204,7 +208,9 @@ export default function SettingsPage() {
           </h2>
           <dl className="space-y-3">
             <div>
-              <dt className="text-sm font-medium text-gray-500">Workspace ID</dt>
+              <dt className="text-sm font-medium text-gray-500">
+                Workspace ID
+              </dt>
               <dd className="mt-1 font-mono text-sm text-gray-900">
                 {currentWorkspace.id}
               </dd>
@@ -227,4 +233,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-

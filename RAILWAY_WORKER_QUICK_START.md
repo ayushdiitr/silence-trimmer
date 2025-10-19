@@ -85,14 +85,20 @@ Your Railway Project
 
 **Check the logs for the error:**
 
-1. **"Invalid environment variables"**
+1. **"spawn ffprobe ENOENT" or "FFmpeg not found"**
+   → FFmpeg is not installed
+   → See [RAILWAY_FFMPEG_FIX.md](./RAILWAY_FFMPEG_FIX.md)
+   → Quick fix: Add `nixpacks.worker.toml` (already in repo)
+   → Set "Nixpacks Config Path" to `nixpacks.worker.toml` in Railway settings
+
+2. **"Invalid environment variables"**
    → Copy all env vars from web service
 
-2. **"Cannot connect to Redis"**
+3. **"Cannot connect to Redis"**
    → Make sure Redis is added to your project
    → Check `REDIS_URL` is set
 
-3. **"Cannot connect to database"**
+4. **"Cannot connect to database"**
    → Check `DATABASE_URL` is set
    → Make sure PostgreSQL is linked
 

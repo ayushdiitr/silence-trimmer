@@ -1,0 +1,9 @@
+[phases.setup]
+nixPkgs = ['nodejs-20_x', 'ffmpeg-full']
+
+[phases.install]
+cmds = ['npm ci']
+
+[start]
+cmd = 'npm run start:worker'
+

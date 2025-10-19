@@ -70,6 +70,16 @@ src/
 └── env.js                   # Environment validation
 ```
 
+### Architecture Overview
+
+```
+Railway Project
+├── PostgreSQL (database)
+├── Redis (job queue)
+├── Web Service (Next.js) ← Handles HTTP requests
+└── Worker Service (FFmpeg) ← Processes videos in background
+```
+
 ## Getting Started
 
 ### Prerequisites

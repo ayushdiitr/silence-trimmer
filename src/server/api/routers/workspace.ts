@@ -51,7 +51,10 @@ export const workspaceRouter = createTRPCRouter({
         workspaceId: z.string().optional(),
         name: z.string().min(1).max(255).optional(),
         logoUrl: z.string().url().optional().nullable(),
-        primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+        primaryColor: z
+          .string()
+          .regex(/^#[0-9A-Fa-f]{6}$/)
+          .optional(),
         customDomain: z.string().max(255).optional().nullable(),
       }),
     )
@@ -67,7 +70,8 @@ export const workspaceRouter = createTRPCRouter({
       const updateData: Record<string, string | null | undefined> = {};
       if (input.name !== undefined) updateData.name = input.name;
       if (input.logoUrl !== undefined) updateData.logoUrl = input.logoUrl;
-      if (input.primaryColor !== undefined) updateData.primaryColor = input.primaryColor;
+      if (input.primaryColor !== undefined)
+        updateData.primaryColor = input.primaryColor;
       if (input.customDomain !== undefined) {
         // Check if custom domain is already taken by another workspace
         if (input.customDomain) {
@@ -107,7 +111,11 @@ export const workspaceRouter = createTRPCRouter({
     .input(
       z.object({
         name: z.string().min(1).max(255),
-        slug: z.string().min(1).max(255).regex(/^[a-z0-9-]+$/),
+        slug: z
+          .string()
+          .min(1)
+          .max(255)
+          .regex(/^[a-z0-9-]+$/),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -148,4 +156,3 @@ export const workspaceRouter = createTRPCRouter({
       return workspace;
     }),
 });
-

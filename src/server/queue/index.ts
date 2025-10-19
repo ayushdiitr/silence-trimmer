@@ -63,4 +63,3 @@ export async function getJobStatus(jobId: string) {
     finishedOn: job.finishedOn,
   };
 }
-

@@ -10,11 +10,13 @@ export default function JobDetailPage() {
 
   const { data: job, refetch } = api.video.getJobStatus.useQuery(
     { jobId },
-    { 
+    {
       refetchInterval: (query) => {
         const data = query.state.data;
-        return data?.status === "completed" || data?.status === "failed" ? false : 3000;
-      }
+        return data?.status === "completed" || data?.status === "failed"
+          ? false
+          : 3000;
+      },
     },
   );
 
@@ -123,7 +125,8 @@ export default function JobDetailPage() {
                     Processing Complete! 🎉
                   </h3>
                   <p className="text-sm text-green-700">
-                    Your video has been processed successfully. Download it below.
+                    Your video has been processed successfully. Download it
+                    below.
                   </p>
                 </div>
                 <a
@@ -203,4 +206,3 @@ export default function JobDetailPage() {
     </div>
   );
 }
-

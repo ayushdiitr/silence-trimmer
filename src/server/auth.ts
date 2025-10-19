@@ -60,7 +60,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           // Create default workspace for new user
           const slug = user.email.split("@")[0] + "-" + Date.now();
-          const workspaceName = user.name ? `${user.name}'s Workspace` : "My Workspace";
+          const workspaceName = user.name
+            ? `${user.name}'s Workspace`
+            : "My Workspace";
 
           const newWorkspaces = await db
             .insert(workspaces)
@@ -122,4 +124,3 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/auth/signin",
   },
 });
-

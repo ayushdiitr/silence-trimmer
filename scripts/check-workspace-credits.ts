@@ -1,9 +1,9 @@
 /**
  * Script to check workspace credits and recent payments
- * 
+ *
  * Usage:
  *   npx tsx scripts/check-workspace-credits.ts [email or workspaceId]
- * 
+ *
  * Example:
  *   npx tsx scripts/check-workspace-credits.ts ayush@example.com
  *   npx tsx scripts/check-workspace-credits.ts abc123
@@ -11,14 +11,23 @@
 
 import { eq, desc } from "drizzle-orm";
 import { db } from "../src/server/db";
-import { users, workspaces, memberships, payments } from "../src/server/db/schema";
+import {
+  users,
+  workspaces,
+  memberships,
+  payments,
+} from "../src/server/db/schema";
 
 async function checkCredits() {
   const identifier = process.argv[2];
 
   if (!identifier) {
-    console.error("❌ Usage: npx tsx scripts/check-workspace-credits.ts <email or workspaceId>");
-    console.error("\nExample: npx tsx scripts/check-workspace-credits.ts ayush@example.com");
+    console.error(
+      "❌ Usage: npx tsx scripts/check-workspace-credits.ts <email or workspaceId>",
+    );
+    console.error(
+      "\nExample: npx tsx scripts/check-workspace-credits.ts ayush@example.com",
+    );
     process.exit(1);
   }
 
@@ -52,7 +61,10 @@ async function checkCredits() {
         .innerJoin(workspaces, eq(workspaces.id, memberships.workspaceId))
         .where(eq(memberships.userId, user[0]!.id));
 
-      workspaceList = userMemberships.map(m => ({ ...m.workspace, role: m.role }));
+      workspaceList = userMemberships.map((m) => ({
+        ...m.workspace,
+        role: m.role,
+      }));
     } else {
       // Treat as workspace ID
       const workspace = await db
@@ -75,17 +87,17 @@ async function checkCredits() {
     }
 
     // Display workspace information
-    console.log(`\n📊 Workspace${workspaceList.length > 1 ? 's' : ''}:\n`);
+    console.log(`\n📊 Workspace${workspaceList.length > 1 ? "s" : ""}:\n`);
 
     for (const workspace of workspaceList) {
       console.log(`   Name: ${workspace.name}`);
       console.log(`   ID: ${workspace.id}`);
       console.log(`   Slug: ${workspace.slug}`);
       console.log(`   Credits: ${workspace.credits}`);
-      if ('role' in workspace) {
+      if ("role" in workspace) {
         console.log(`   Your Role: ${workspace.role}`);
       }
-      
+
       // Get recent payments for this workspace
       const recentPayments = await db
         .select()
@@ -97,7 +109,9 @@ async function checkCredits() {
       if (recentPayments.length > 0) {
         console.log(`\n   💳 Recent Payments:`);
         for (const payment of recentPayments) {
-          console.log(`      - ${payment.status}: +${payment.creditsAdded} credits ($${(payment.amount / 100).toFixed(2)})`);
+          console.log(
+            `      - ${payment.status}: +${payment.creditsAdded} credits ($${(payment.amount / 100).toFixed(2)})`,
+          );
           console.log(`        Session: ${payment.stripeSessionId}`);
           console.log(`        Date: ${payment.createdAt.toISOString()}`);
         }
@@ -107,7 +121,6 @@ async function checkCredits() {
 
       console.log("");
     }
-
   } catch (error) {
     console.error("\n❌ Error:", error);
     process.exit(1);
@@ -117,4 +130,3 @@ async function checkCredits() {
 }
 
 checkCredits();
-

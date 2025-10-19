@@ -1,9 +1,9 @@
 /**
  * Script to manually add credits for a completed payment that wasn't processed
- * 
+ *
  * Usage:
  *   npx tsx scripts/fix-missing-credits.ts <workspaceId> <stripeSessionId> <amount>
- * 
+ *
  * Example:
  *   npx tsx scripts/fix-missing-credits.ts abc123 pi_1234567890 1000
  */
@@ -18,8 +18,12 @@ async function addMissingCredits() {
   const amount = parseInt(process.argv[4] ?? "1000");
 
   if (!workspaceId || !stripeSessionId) {
-    console.error("❌ Usage: npx tsx scripts/fix-missing-credits.ts <workspaceId> <stripeSessionId> [amount]");
-    console.error("\nExample: npx tsx scripts/fix-missing-credits.ts abc123 pi_1234567890 1000");
+    console.error(
+      "❌ Usage: npx tsx scripts/fix-missing-credits.ts <workspaceId> <stripeSessionId> [amount]",
+    );
+    console.error(
+      "\nExample: npx tsx scripts/fix-missing-credits.ts abc123 pi_1234567890 1000",
+    );
     process.exit(1);
   }
 
@@ -49,7 +53,7 @@ async function addMissingCredits() {
       console.log(`⚠️  Payment already recorded: ${stripeSessionId}`);
       console.log(`   Status: ${existingPayment[0]!.status}`);
       console.log(`   Credits added: ${existingPayment[0]!.creditsAdded}`);
-      
+
       const proceed = process.argv.includes("--force");
       if (!proceed) {
         console.log("\n💡 Use --force flag to add credits anyway");
@@ -79,7 +83,6 @@ async function addMissingCredits() {
     console.log(`   Previous credits: ${workspace[0]!.credits}`);
     console.log(`   New credits: ${newCredits}`);
     console.log(`   Payment record created: ${stripeSessionId}`);
-
   } catch (error) {
     console.error("\n❌ Error adding credits:", error);
     process.exit(1);
@@ -89,4 +92,3 @@ async function addMissingCredits() {
 }
 
 addMissingCredits();
-
