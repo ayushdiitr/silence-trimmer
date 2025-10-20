@@ -7,7 +7,11 @@ A full-stack SaaS application that automatically removes silences from videos us
 - 🎥 **Automatic Silence Removal** - Upload videos and automatically remove silent parts
 - 👥 **Multi-Tenancy** - Support for multiple workspaces with custom domains
 - 💳 **Stripe Integration** - Purchase credits via Stripe Checkout
-- 🎨 **White-Label Support** - Custom logos, colors, and domains per workspace
+- 🎨 **White-Label Support** - Complete white-labeling with DNS verification
+  - Custom logos per workspace
+  - Custom primary colors
+  - Branded landing pages
+  - Branded email notifications
 - 📧 **Email Notifications** - Get notified when video processing is complete
 - 🔐 **Google OAuth** - Secure authentication with NextAuth.js
 - ⚡ **Background Processing** - BullMQ + Redis for scalable video processing
@@ -26,17 +30,7 @@ A full-stack SaaS application that automatically removes silences from videos us
 - **Video Processing**: FFmpeg
 - **Deployment**: Railway (Web + Worker)
 
-## Documentation
 
-📚 **Comprehensive guides available:**
-
-- **[SETUP.md](./SETUP.md)** - Local development setup
-- **[RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)** - Full Railway deployment guide
-- **[RAILWAY_WORKER_SETUP.md](./RAILWAY_WORKER_SETUP.md)** - ⭐ Quick worker deployment guide
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System architecture & data flow
-- **[WORKER_DEPLOYMENT.md](./WORKER_DEPLOYMENT.md)** - Worker deployment options (Docker, PM2, Systemd)
-- **[IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md)** - Technical implementation details
-- **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Quick reference for common tasks
 
 ## Project Structure
 

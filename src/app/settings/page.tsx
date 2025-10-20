@@ -13,12 +13,17 @@ export default function SettingsPage() {
     {},
   );
   const updateWorkspace = api.workspace.update.useMutation();
+  const verifyDomain = api.workspace.verifyDomain.useMutation();
+  const removeDomain = api.workspace.removeDomain.useMutation();
+  const { data: domainInstructions } = api.workspace.getDomainInstructions.useQuery({});
 
   const [name, setName] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#7c3aed");
   const [customDomain, setCustomDomain] = useState("");
   const [saving, setSaving] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   // Initialize form when workspace loads
   useState(() => {
@@ -39,7 +44,6 @@ export default function SettingsPage() {
         name: name || undefined,
         logoUrl: logoUrl || null,
         primaryColor: primaryColor || undefined,
-        customDomain: customDomain || null,
       });
 
       await refetch();
@@ -51,6 +55,49 @@ export default function SettingsPage() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleVerifyDomain = async () => {
+    if (!customDomain) {
+      toast.error("Please enter a domain");
+      return;
+    }
+
+    setVerifying(true);
+
+    try {
+      const result = await verifyDomain.mutateAsync({ domain: customDomain });
+      await refetch();
+      toast.success(result.message);
+      setShowInstructions(false);
+    } catch (error) {
+      console.error("Verify error:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to verify domain. Please check your DNS settings.",
+      );
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleRemoveDomain = async () => {
+    if (!confirm("Are you sure you want to remove the custom domain?")) {
+      return;
+    }
+
+    try {
+      await removeDomain.mutateAsync({});
+      await refetch();
+      setCustomDomain("");
+      toast.success("Custom domain removed successfully!");
+    } catch (error) {
+      console.error("Remove error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to remove domain",
+      );
     }
   };
 
@@ -158,16 +205,85 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-gray-700">
                 Custom Domain
               </label>
-              <input
-                type="text"
-                value={customDomain}
-                onChange={(e) => setCustomDomain(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
-                placeholder="videos.yourdomain.com"
-              />
-              <p className="mt-1 text-sm text-gray-500">
-                Point your domain&apos;s DNS to this app and enter it here
-              </p>
+              
+              {currentWorkspace.customDomain ? (
+                <div className="mt-2 rounded-lg border border-green-200 bg-green-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="flex items-center gap-2 font-medium text-green-900">
+                        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        Domain Active
+                      </p>
+                      <p className="mt-1 text-sm text-green-700">
+                        {currentWorkspace.customDomain}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleRemoveDomain}
+                      className="rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-200"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={customDomain}
+                    onChange={(e) => setCustomDomain(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                    placeholder="videos.yourdomain.com"
+                  />
+                  
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleVerifyDomain}
+                      disabled={verifying || !customDomain}
+                      className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {verifying ? "Verifying..." : "Verify Domain"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowInstructions(!showInstructions)}
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                    >
+                      {showInstructions ? "Hide" : "Show"} Instructions
+                    </button>
+                  </div>
+
+                  {showInstructions && domainInstructions && (
+                    <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                      <h4 className="font-medium text-blue-900">
+                        DNS Configuration Instructions
+                      </h4>
+                      <ol className="mt-3 space-y-2 text-sm text-blue-800">
+                        {domainInstructions.instructions.map((instruction, index) => (
+                          <li key={index} className={instruction.startsWith("  ") ? "ml-4 font-mono text-xs" : ""}>
+                            {index + 1}. {instruction}
+                          </li>
+                        ))}
+                      </ol>
+                      <div className="mt-4 rounded bg-blue-100 p-3">
+                        <p className="text-sm font-medium text-blue-900">
+                          CNAME Target:
+                        </p>
+                        <code className="mt-1 block rounded bg-white px-2 py-1 text-sm text-blue-900">
+                          {domainInstructions.cnameTarget}
+                        </code>
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="mt-2 text-sm text-gray-500">
+                    Configure your DNS and verify to enable white-label custom domain
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Current Credits Display */}

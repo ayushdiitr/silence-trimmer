@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import dns from "dns/promises";
 
 import {
   createTRPCRouter,
@@ -8,6 +9,7 @@ import {
   workspaceProcedure,
 } from "~/server/api/trpc";
 import { memberships, workspaces } from "~/server/db/schema";
+import { env } from "~/env";
 
 export const workspaceRouter = createTRPCRouter({
   /**
@@ -154,5 +156,150 @@ export const workspaceRouter = createTRPCRouter({
       });
 
       return workspace;
+    }),
+
+  /**
+   * Verify custom domain DNS configuration
+   */
+  verifyDomain: workspaceProcedure
+    .input(
+      z.object({
+        domain: z.string().min(1).max(255),
+        workspaceId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.membership.role !== "owner") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only workspace owners can verify domains",
+        });
+      }
+
+      const domain = input.domain.toLowerCase().trim();
+
+      const domainRegex = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/;
+      if (!domainRegex.test(domain)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid domain format",
+        });
+      }
+
+      const existing = await ctx.db
+        .select()
+        .from(workspaces)
+        .where(eq(workspaces.customDomain, domain))
+        .limit(1);
+
+      if (existing.length > 0 && existing[0]!.id !== ctx.workspace.id) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "This domain is already in use by another workspace",
+        });
+      }
+
+      const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL;
+      const expectedTarget = appUrl.replace(/^https?:\/\//, "").split(":")[0];
+
+      try {
+        const records = await dns.resolveCname(domain).catch(() => null);
+
+        if (!records || records.length === 0) {
+          const aRecords = await dns.resolve4(domain).catch(() => null);
+          
+          if (!aRecords) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `DNS verification failed. Please add a CNAME record pointing to ${expectedTarget}`,
+            });
+          }
+
+          console.log(`Domain ${domain} uses A record instead of CNAME`);
+        } else {
+          const cnameTarget = records[0]?.toLowerCase();
+          if (!cnameTarget?.includes(expectedTarget ?? "")) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `CNAME record points to ${cnameTarget} instead of ${expectedTarget}`,
+            });
+          }
+        }
+
+        await ctx.db
+          .update(workspaces)
+          .set({ customDomain: domain })
+          .where(eq(workspaces.id, ctx.workspace.id));
+
+        return {
+          success: true,
+          domain,
+          message: "Domain verified successfully!",
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+
+        console.error("DNS verification error:", error);
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `DNS verification failed. Please ensure ${domain} has a CNAME record pointing to ${expectedTarget}`,
+        });
+      }
+    }),
+
+
+  removeDomain: workspaceProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx }) => {
+      // Only owners can remove domains
+      if (ctx.membership.role !== "owner") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only workspace owners can remove domains",
+        });
+      }
+
+      await ctx.db
+        .update(workspaces)
+        .set({ customDomain: null })
+        .where(eq(workspaces.id, ctx.workspace.id));
+
+      return {
+        success: true,
+        message: "Custom domain removed",
+      };
+    }),
+
+ 
+  getDomainInstructions: workspaceProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx }) => {
+      const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL;
+      const appDomain = appUrl.replace(/^https?:\/\//, "").split(":")[0];
+
+      return {
+        appDomain,
+        cnameTarget: appDomain,
+        instructions: [
+          `Go to your DNS provider (Cloudflare, GoDaddy, etc.)`,
+          `Add a CNAME record:`,
+          `  - Type: CNAME`,
+          `  - Name: videos (or your subdomain)`,
+          `  - Value: ${appDomain}`,
+          `  - TTL: Auto or 3600`,
+          `Wait 5-60 minutes for DNS propagation`,
+          `Come back and click "Verify Domain"`,
+        ],
+      };
     }),
 });
