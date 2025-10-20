@@ -38,6 +38,8 @@ export const env = createEnv({
     // Resend
     RESEND_API_KEY: z.string().min(1),
     EMAIL_FROM: z.string().email(),
+    
+    BASE_DOMAIN: z.string().min(1).optional(),
   },
 
   /**
@@ -47,6 +49,7 @@ export const env = createEnv({
    */
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
+    NEXT_PUBLIC_BASE_DOMAIN: z.string().min(1).optional(),
   },
 
   /**
@@ -71,7 +74,9 @@ export const env = createEnv({
     STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
+    BASE_DOMAIN: process.env.BASE_DOMAIN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_BASE_DOMAIN: process.env.NEXT_PUBLIC_BASE_DOMAIN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

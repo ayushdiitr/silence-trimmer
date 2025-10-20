@@ -158,8 +158,105 @@ export const workspaceRouter = createTRPCRouter({
       return workspace;
     }),
 
+ 
+  reserveSubdomain: workspaceProcedure
+    .input(
+      z.object({
+        subdomain: z
+          .string()
+          .min(3, "Subdomain must be at least 3 characters")
+          .max(63, "Subdomain must be less than 63 characters")
+          .regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers, and hyphens allowed"),
+        workspaceId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.membership.role !== "owner") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only workspace owners can reserve subdomains",
+        });
+      }
+
+      // Base domain - configure this based on your wildcard domain in Railway
+      // Example: If you added *.videoproc.app to Railway, use "videoproc.app"
+      const baseDomain = process.env.BASE_DOMAIN || "yourdomain.com";
+      const fullDomain = `${input.subdomain}.${baseDomain}`;
+
+      // Check if subdomain is already taken
+      const existing = await ctx.db
+        .select()
+        .from(workspaces)
+        .where(eq(workspaces.customDomain, fullDomain))
+        .limit(1);
+
+      if (existing.length > 0 && existing[0]!.id !== ctx.workspace.id) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "This subdomain is already taken. Please try another.",
+        });
+      }
+
+      // Reserved subdomains (prevent conflicts)
+      const reserved = ["www", "api", "app", "admin", "dashboard", "cdn", "static", "assets", "mail", "blog"];
+      if (reserved.includes(input.subdomain)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This subdomain is reserved. Please choose another.",
+        });
+      }
+
+      // Instantly activate (no DNS verification needed for subdomains)
+      await ctx.db
+        .update(workspaces)
+        .set({ customDomain: fullDomain })
+        .where(eq(workspaces.id, ctx.workspace.id));
+
+      return {
+        success: true,
+        domain: fullDomain,
+        url: `https://${fullDomain}`,
+        message: "Subdomain activated instantly!",
+      };
+    }),
+
   /**
-   * Verify custom domain DNS configuration
+   * Check if subdomain is available
+   */
+  checkSubdomainAvailability: protectedProcedure
+    .input(
+      z.object({
+        subdomain: z.string(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const baseDomain = process.env.BASE_DOMAIN || "yourdomain.com";
+      const fullDomain = `${input.subdomain}.${baseDomain}`;
+
+      const reserved = ["www", "api", "app", "admin", "dashboard", "cdn", "static", "assets", "mail", "blog"];
+      if (reserved.includes(input.subdomain)) {
+        return {
+          available: false,
+          domain: fullDomain,
+          reason: "reserved",
+        };
+      }
+
+      const existing = await ctx.db
+        .select()
+        .from(workspaces)
+        .where(eq(workspaces.customDomain, fullDomain))
+        .limit(1);
+
+      return {
+        available: existing.length === 0,
+        domain: fullDomain,
+        reason: existing.length > 0 ? "taken" : undefined,
+      };
+    }),
+
+  /**
+   * Verify custom domain DNS configuration (for bring-your-own-domain feature)
    */
   verifyDomain: workspaceProcedure
     .input(
@@ -198,37 +295,33 @@ export const workspaceRouter = createTRPCRouter({
           message: "This domain is already in use by another workspace",
         });
       }
+
       const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL;
       const expectedTarget = appUrl.replace(/^https?:\/\//, "").split(":")[0];
 
-        try {
-          const records = await dns.resolveCname(domain).catch(() => null);
+      try {
+        const records = await dns.resolveCname(domain).catch(() => null);
 
-          if (!records || records.length === 0) {
-            // Check if it's an A record (alternative setup)
-            const aRecords = await dns.resolve4(domain).catch(() => null);
-            
-            if (!aRecords) {
-              throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: `DNS verification failed. Please ensure ${domain} has a CNAME record pointing to your Railway CNAME (check Railway dashboard for the correct CNAME value)`,
-              });
-            }
-
-            // A record exists - allow it
-            console.log(`Domain ${domain} uses A record instead of CNAME`);
-          } else {
-            // CNAME exists - verify it points to Railway (*.up.railway.app)
-            const cnameTarget = records[0]?.toLowerCase();
-            if (!cnameTarget?.includes("railway.app")) {
-              throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: `CNAME record points to ${cnameTarget}. It should point to a Railway domain (*.up.railway.app). Check Railway dashboard for the correct CNAME value.`,
-              });
-            }
-            
-            console.log(`Domain ${domain} verified - CNAME points to ${cnameTarget}`);
+        if (!records || records.length === 0) {
+          const aRecords = await dns.resolve4(domain).catch(() => null);
+          
+          if (!aRecords) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `DNS verification failed. Please add a CNAME record pointing to ${expectedTarget}`,
+            });
           }
+
+          console.log(`Domain ${domain} uses A record instead of CNAME`);
+        } else {
+          const cnameTarget = records[0]?.toLowerCase();
+          if (!cnameTarget?.includes(expectedTarget ?? "")) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `CNAME record points to ${cnameTarget} instead of ${expectedTarget}`,
+            });
+          }
+        }
 
         await ctx.db
           .update(workspaces)
@@ -288,28 +381,21 @@ export const workspaceRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx }) => {
+      const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL;
+      const appDomain = appUrl.replace(/^https?:\/\//, "").split(":")[0];
+
       return {
-        appDomain: "Railway Dashboard",
-        cnameTarget: "Check Railway for your specific CNAME",
+        appDomain,
+        cnameTarget: appDomain,
         instructions: [
-          `IMPORTANT: Admin must add your domain to Railway first!`,
-          ``,
-          `Step 1: Admin adds domain in Railway:`,
-          `  - Railway Dashboard → Web Service → Settings → Networking → Domains`,
-          `  - Click "+ Custom Domain"`,
-          `  - Enter: videos.yourdomain.com`,
-          `  - Railway will show a CNAME like: abc123.up.railway.app`,
-          `  - Copy this CNAME value`,
-          ``,
-          `Step 2: Configure DNS at your DNS provider:`,
+          `Go to your DNS provider (Cloudflare, GoDaddy, etc.)`,
+          `Add a CNAME record:`,
           `  - Type: CNAME`,
           `  - Name: videos (or your subdomain)`,
-          `  - Value: [Use the CNAME from Railway, NOT the app URL]`,
+          `  - Value: ${appDomain}`,
           `  - TTL: Auto or 3600`,
-          ``,
-          `Step 3: Wait 5-60 minutes for DNS propagation`,
-          ``,
-          `Step 4: Come back and click "Verify Domain"`,
+          `Wait 5-60 minutes for DNS propagation`,
+          `Come back and click "Verify Domain"`,
         ],
       };
     }),
