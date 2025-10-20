@@ -23,7 +23,7 @@ export function CustomDomainSection({
     onSuccess: (data) => {
       toast.success("DNS verified!", {
         description:
-          "Your DNS is configured correctly. We'll activate your domain within 24 hours and notify you by email.",
+          "Your DNS is configured correctly. We'll activate your domain within 24 hours.",
         duration: 10000,
       });
       setDomain("");
@@ -228,7 +228,7 @@ export function CustomDomainSection({
               <li className="flex">
                 <span className="mr-2 font-semibold">3.</span>
                 <span>
-                  Click "Verify DNS" above. We'll receive your request and
+                  Click &quot;Verify DNS&quot; above. We&apos;ll receive your request and
                   activate your domain within 24 hours.
                 </span>
               </li>
@@ -273,7 +273,7 @@ export function CustomDomainSection({
               </div>
               <div className="ml-3">
                 <p className="text-sm text-yellow-700">
-                  <strong>Note:</strong> After DNS verification, we'll manually
+                  <strong>Note:</strong> After DNS verification, we&apos;ll manually
                   activate your domain on our server. This typically takes less
                   than 24 hours.
                    {/* SSL certificate will be automatically
