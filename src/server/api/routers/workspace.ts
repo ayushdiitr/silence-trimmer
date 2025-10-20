@@ -198,33 +198,37 @@ export const workspaceRouter = createTRPCRouter({
           message: "This domain is already in use by another workspace",
         });
       }
-
       const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL;
       const expectedTarget = appUrl.replace(/^https?:\/\//, "").split(":")[0];
 
-      try {
-        const records = await dns.resolveCname(domain).catch(() => null);
+        try {
+          const records = await dns.resolveCname(domain).catch(() => null);
 
-        if (!records || records.length === 0) {
-          const aRecords = await dns.resolve4(domain).catch(() => null);
-          
-          if (!aRecords) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: `DNS verification failed. Please add a CNAME record pointing to ${expectedTarget}`,
-            });
-          }
+          if (!records || records.length === 0) {
+            // Check if it's an A record (alternative setup)
+            const aRecords = await dns.resolve4(domain).catch(() => null);
+            
+            if (!aRecords) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `DNS verification failed. Please ensure ${domain} has a CNAME record pointing to your Railway CNAME (check Railway dashboard for the correct CNAME value)`,
+              });
+            }
 
-          console.log(`Domain ${domain} uses A record instead of CNAME`);
-        } else {
-          const cnameTarget = records[0]?.toLowerCase();
-          if (!cnameTarget?.includes(expectedTarget ?? "")) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: `CNAME record points to ${cnameTarget} instead of ${expectedTarget}`,
-            });
+            // A record exists - allow it
+            console.log(`Domain ${domain} uses A record instead of CNAME`);
+          } else {
+            // CNAME exists - verify it points to Railway (*.up.railway.app)
+            const cnameTarget = records[0]?.toLowerCase();
+            if (!cnameTarget?.includes("railway.app")) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `CNAME record points to ${cnameTarget}. It should point to a Railway domain (*.up.railway.app). Check Railway dashboard for the correct CNAME value.`,
+              });
+            }
+            
+            console.log(`Domain ${domain} verified - CNAME points to ${cnameTarget}`);
           }
-        }
 
         await ctx.db
           .update(workspaces)
@@ -284,21 +288,28 @@ export const workspaceRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx }) => {
-      const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL;
-      const appDomain = appUrl.replace(/^https?:\/\//, "").split(":")[0];
-
       return {
-        appDomain,
-        cnameTarget: appDomain,
+        appDomain: "Railway Dashboard",
+        cnameTarget: "Check Railway for your specific CNAME",
         instructions: [
-          `Go to your DNS provider (Cloudflare, GoDaddy, etc.)`,
-          `Add a CNAME record:`,
+          `IMPORTANT: Admin must add your domain to Railway first!`,
+          ``,
+          `Step 1: Admin adds domain in Railway:`,
+          `  - Railway Dashboard → Web Service → Settings → Networking → Domains`,
+          `  - Click "+ Custom Domain"`,
+          `  - Enter: videos.yourdomain.com`,
+          `  - Railway will show a CNAME like: abc123.up.railway.app`,
+          `  - Copy this CNAME value`,
+          ``,
+          `Step 2: Configure DNS at your DNS provider:`,
           `  - Type: CNAME`,
           `  - Name: videos (or your subdomain)`,
-          `  - Value: ${appDomain}`,
+          `  - Value: [Use the CNAME from Railway, NOT the app URL]`,
           `  - TTL: Auto or 3600`,
-          `Wait 5-60 minutes for DNS propagation`,
-          `Come back and click "Verify Domain"`,
+          ``,
+          `Step 3: Wait 5-60 minutes for DNS propagation`,
+          ``,
+          `Step 4: Come back and click "Verify Domain"`,
         ],
       };
     }),
