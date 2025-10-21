@@ -108,7 +108,8 @@ export async function createRailwayCustomDomain(domain: string): Promise<{
     });
 
     if (!response.ok) {
-      throw new Error(`Railway API returned ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Railway API returned ${response.status}: ${errorText}`);
     }
 
     const result = await response.json() as RailwayCustomDomainCreateResponse;
@@ -125,6 +126,7 @@ export async function createRailwayCustomDomain(domain: string): Promise<{
     }
 
     const customDomain = result.data.customDomainCreate;
+
     const cnameRecord = customDomain.status.dnsRecords.find(record => 
       record.requiredValue
     );
@@ -220,7 +222,108 @@ export async function deleteRailwayCustomDomain(domainId: string): Promise<{
     };
   }
 }
+/**
+ * Get the Railway service's custom domain CNAME target
+ * This returns the CNAME value that users should point their DNS to
+ */
+export async function getRailwayCnameTarget(): Promise<string | null> {
+  const railwayToken = process.env.RAILWAY_API_TOKEN;
+  const railwayServiceId = process.env.RAILWAY_SERVICE_ID;
+  const railwayEnvironmentId = process.env.RAILWAY_ENVIRONMENT_ID || '8d6e0de8-2af1-4190-b7c7-320912db0b26';
+  const railwayProjectId = process.env.RAILWAY_PROJECT_ID || '20c41999-dfbc-4368-8fcd-74a1727c9520';
 
+  if (!railwayToken || !railwayServiceId || !railwayEnvironmentId || !railwayProjectId) {
+    console.warn("Railway API credentials not configured");
+    console.warn("Required: RAILWAY_API_TOKEN, RAILWAY_SERVICE_ID, RAILWAY_ENVIRONMENT_ID, RAILWAY_PROJECT_ID");
+    return null;
+  }
+
+  const query = `
+    query GetDomains($environmentId: String!, $projectId: String!, $serviceId: String!) {
+      domains(environmentId: $environmentId, projectId: $projectId, serviceId: $serviceId) {
+        serviceDomains {
+          domain
+          suffix
+        }
+        customDomains {
+          status {
+            dnsRecords {
+              requiredValue
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const response = await fetch(RAILWAY_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${railwayToken}`,
+      },
+      body: JSON.stringify({
+        query,
+        variables: { 
+          environmentId: railwayEnvironmentId,
+          projectId: railwayProjectId,
+          serviceId: railwayServiceId 
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('❌ Failed to fetch Railway service info:', response.status);
+      return null;
+    }
+
+    const result = await response.json();
+
+    // Check for GraphQL errors
+    if (result.errors && result.errors.length > 0) {
+      console.error('❌ GraphQL errors:', JSON.stringify(result.errors, null, 2));
+      return null;
+    }
+
+    const domains = result.data?.domains;
+    
+    if (!domains) {
+      return null;
+    }
+
+    // First try to get from customDomains (the requiredValue we need)
+    const customDomains = domains.customDomains;
+    
+    if (customDomains && customDomains.length > 0) {
+      const dnsRecords = customDomains[0].status?.dnsRecords;
+      
+      if (dnsRecords && dnsRecords.length > 0) {
+        const requiredValue = dnsRecords[0].requiredValue;
+        
+        if (requiredValue) {
+          return requiredValue;
+        }
+      }
+    }
+
+    // Fallback to serviceDomains if no customDomains
+    const serviceDomains = domains.serviceDomains;
+    
+    if (serviceDomains && serviceDomains.length > 0) {
+      const cnameTarget = serviceDomains[0].domain;
+      
+      if (cnameTarget) {
+        return cnameTarget;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('❌ Error fetching Railway CNAME:', error);
+    return null;
+  }
+}
 /**
  * Check if Railway API is configured
  */

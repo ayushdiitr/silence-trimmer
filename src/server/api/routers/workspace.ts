@@ -13,7 +13,8 @@ import { env } from "~/env";
 import { 
   createRailwayCustomDomain, 
   deleteRailwayCustomDomain,
-  isRailwayApiConfigured 
+  isRailwayApiConfigured,
+  getRailwayCnameTarget
 } from "~/server/railway";
 
 export const workspaceRouter = createTRPCRouter({
@@ -330,6 +331,7 @@ export const workspaceRouter = createTRPCRouter({
         }
 
         let railwayDomainId: string | null = null;
+        let railwayCnameValue: string | null = null;
         let activationMessage = "Domain verified successfully!";
 
         if (isRailwayApiConfigured()) {
@@ -338,8 +340,10 @@ export const workspaceRouter = createTRPCRouter({
           
           if (railwayResult.success && railwayResult.domainId) {
             railwayDomainId = railwayResult.domainId;
+            railwayCnameValue = railwayResult.cnameValue;
             activationMessage = "Domain verified and automatically added to Railway! SSL certificate will be provisioned in 5-15 minutes.";
             console.log(`✅ Railway domain created: ${domain} (ID: ${railwayDomainId})`);
+            console.log(`✅ CNAME value: ${railwayCnameValue}`);
           } else {
             console.warn(`⚠️ Railway API failed: ${railwayResult.error}. Domain verified but requires manual Railway addition.`);
             activationMessage = "Domain verified! Please add to Railway dashboard for SSL activation.";
@@ -362,6 +366,7 @@ export const workspaceRouter = createTRPCRouter({
           domain,
           message: activationMessage,
           autoActivated: !!railwayDomainId,
+          cnameValue: railwayCnameValue,
         };
       } catch (error) {
         if (error instanceof TRPCError) {
@@ -423,8 +428,18 @@ export const workspaceRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx }) => {
+      // Try to get Railway's CNAME target from API
+      const railwayCname = await getRailwayCnameTarget();
+      
+      // Fallback to Railway public domain or app URL
+      const railwayPublicDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+      const railwayStaticUrl = process.env.RAILWAY_STATIC_URL;
       const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL;
-      const appDomain = appUrl.replace(/^https?:\/\//, "").split(":")[0];
+      
+      // Priority: Railway API CNAME > Railway env vars > App URL
+      const railwayUrl = railwayPublicDomain || railwayStaticUrl;
+      const fallbackUrl = railwayUrl || appUrl;
+      const cnameTarget = railwayCname || fallbackUrl.replace(/^https?:\/\//, "").split(":")[0];
 
       const isApiConfigured = isRailwayApiConfigured();
       const sslNote = isApiConfigured
@@ -432,14 +447,14 @@ export const workspaceRouter = createTRPCRouter({
         : `SSL certificates are provisioned automatically by Railway. After DNS verification, allow 5-15 minutes for SSL activation. For instant SSL, consider using Cloudflare proxy.`;
 
       return {
-        appDomain,
-        cnameTarget: appDomain,
+        appDomain: cnameTarget,
+        cnameTarget,
         instructions: [
           `Go to your DNS provider (Cloudflare, GoDaddy, etc.)`,
           `Add a CNAME record:`,
           `  - Type: CNAME`,
           `  - Name: videos (or your subdomain)`,
-          `  - Value: ${appDomain}`,
+          `  - Value: ${cnameTarget}`,
           `  - TTL: Auto or 3600`,
           `Wait 5-60 minutes for DNS propagation`,
           `Come back and click "Verify Domain"`,

@@ -21,7 +21,12 @@ export function CustomDomainSection({
   const utils = api.useUtils();
   const verifyDomain = api.workspace.verifyDomain.useMutation({
     onSuccess: (data) => {
-      if (data.autoActivated) {
+      if (data.autoActivated && data.cnameValue) {
+        toast.success("🎉 Domain activated automatically!", {
+          description: `Railway CNAME: ${data.cnameValue}. SSL certificate will be provisioned in 5-15 minutes.`,
+          duration: 10000,
+        });
+      } else if (data.autoActivated) {
         toast.success("🎉 Domain activated automatically!", {
           description:
             "Your domain has been added to Railway! SSL certificate will be provisioned in 5-15 minutes.",
@@ -35,6 +40,7 @@ export function CustomDomainSection({
       }
       setDomain("");
       utils.workspace.getById.invalidate();
+      getDomainInstructions.refetch();
       domainStatus.refetch();
     },
     onError: (error) => {
@@ -94,8 +100,8 @@ export function CustomDomainSection({
     removeDomain.mutate({ workspaceId });
   };
 
-  const appDomain =
-    getDomainInstructions.data?.appDomain || "your-app.up.railway.app";
+  const cnameTarget =
+    getDomainInstructions.data?.cnameTarget || "your-app.up.railway.app";
   const subdomain = domain ? domain.split(".")[0] : "videos";
 
   // // Don't show this section if user has a subdomain - they should upgrade
@@ -296,7 +302,7 @@ export function CustomDomainSection({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Value:</span>
-                      <span className="font-semibold">{appDomain}</span>
+                      <span className="font-semibold">{cnameTarget}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">TTL:</span>
