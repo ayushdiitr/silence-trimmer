@@ -299,7 +299,7 @@ export async function getRailwayCnameTarget(): Promise<string | null> {
       const dnsRecords = customDomains[0].status?.dnsRecords;
       
       if (dnsRecords && dnsRecords.length > 0) {
-        const requiredValue = dnsRecords[0].requiredValue;
+        const requiredValue:string = dnsRecords[0].requiredValue;
         
         if (requiredValue) {
           return requiredValue;
@@ -311,7 +311,7 @@ export async function getRailwayCnameTarget(): Promise<string | null> {
     const serviceDomains = domains.serviceDomains;
     
     if (serviceDomains && serviceDomains.length > 0) {
-      const cnameTarget = serviceDomains[0].domain;
+      const cnameTarget: string = serviceDomains[0].domain;
       
       if (cnameTarget) {
         return cnameTarget;
