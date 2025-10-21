@@ -60,6 +60,7 @@ export const workspaces = createTable(
     logoUrl: d.text(),
     primaryColor: d.varchar({ length: 7 }).default("#7c3aed"), // Default purple
     customDomain: d.varchar({ length: 255 }).unique(),
+    railwayDomainId: d.varchar({ length: 255 }), // Railway domain ID for API management
     credits: d.integer().notNull().default(1),
     ownerId: d
       .text()

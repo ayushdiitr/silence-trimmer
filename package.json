@@ -13,6 +13,7 @@
     "db:studio": "drizzle-kit studio",
     "dev": "next dev --turbo",
     "dev:worker": "tsx -r dotenv/config  src/worker/index.ts",
+    "domains:pending": "tsx -r dotenv/config scripts/check-pending-domains.ts",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",

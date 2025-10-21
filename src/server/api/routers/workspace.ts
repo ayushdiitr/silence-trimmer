@@ -10,6 +10,11 @@ import {
 } from "~/server/api/trpc";
 import { memberships, workspaces } from "~/server/db/schema";
 import { env } from "~/env";
+import { 
+  createRailwayCustomDomain, 
+  deleteRailwayCustomDomain,
+  isRailwayApiConfigured 
+} from "~/server/railway";
 
 export const workspaceRouter = createTRPCRouter({
   /**
@@ -257,6 +262,7 @@ export const workspaceRouter = createTRPCRouter({
 
   /**
    * Verify custom domain DNS configuration (for bring-your-own-domain feature)
+   * Now with automatic Railway domain creation!
    */
   verifyDomain: workspaceProcedure
     .input(
@@ -323,15 +329,39 @@ export const workspaceRouter = createTRPCRouter({
           }
         }
 
+        let railwayDomainId: string | null = null;
+        let activationMessage = "Domain verified successfully!";
+
+        if (isRailwayApiConfigured()) {
+          console.log(`🚀 Creating domain in Railway: ${domain}`);
+          const railwayResult = await createRailwayCustomDomain(domain);
+          
+          if (railwayResult.success && railwayResult.domainId) {
+            railwayDomainId = railwayResult.domainId;
+            activationMessage = "Domain verified and automatically added to Railway! SSL certificate will be provisioned in 5-15 minutes.";
+            console.log(`✅ Railway domain created: ${domain} (ID: ${railwayDomainId})`);
+          } else {
+            console.warn(`⚠️ Railway API failed: ${railwayResult.error}. Domain verified but requires manual Railway addition.`);
+            activationMessage = "Domain verified! Please add to Railway dashboard for SSL activation.";
+          }
+        } else {
+          console.log(`ℹ️ Railway API not configured. Domain verified but requires manual Railway addition.`);
+          activationMessage = "Domain verified! Please add to Railway dashboard for SSL activation.";
+        }
+
         await ctx.db
           .update(workspaces)
-          .set({ customDomain: domain })
+          .set({ 
+            customDomain: domain,
+            railwayDomainId: railwayDomainId,
+          })
           .where(eq(workspaces.id, ctx.workspace.id));
 
         return {
           success: true,
           domain,
-          message: "Domain verified successfully!",
+          message: activationMessage,
+          autoActivated: !!railwayDomainId,
         };
       } catch (error) {
         if (error instanceof TRPCError) {
@@ -362,9 +392,21 @@ export const workspaceRouter = createTRPCRouter({
         });
       }
 
+      if (ctx.workspace.railwayDomainId && isRailwayApiConfigured()) {
+        console.log(`🗑️ Deleting domain from Railway: ${ctx.workspace.railwayDomainId}`);
+        const deleteResult = await deleteRailwayCustomDomain(ctx.workspace.railwayDomainId);
+        
+        if (deleteResult.success) {
+          console.log(`✅ Railway domain deleted successfully`);
+        } else {
+          console.warn(`⚠️ Failed to delete Railway domain: ${deleteResult.error}`);
+          // Continue anyway - we'll still remove from our database
+        }
+      }
+
       await ctx.db
         .update(workspaces)
-        .set({ customDomain: null })
+        .set({ customDomain: null, railwayDomainId: null })
         .where(eq(workspaces.id, ctx.workspace.id));
 
       return {
@@ -384,6 +426,11 @@ export const workspaceRouter = createTRPCRouter({
       const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL;
       const appDomain = appUrl.replace(/^https?:\/\//, "").split(":")[0];
 
+      const isApiConfigured = isRailwayApiConfigured();
+      const sslNote = isApiConfigured
+        ? `✨ Automatic SSL! When you verify your domain, it will be automatically added to Railway with SSL certificate provisioning (5-15 minutes).`
+        : `SSL certificates are provisioned automatically by Railway. After DNS verification, allow 5-15 minutes for SSL activation. For instant SSL, consider using Cloudflare proxy.`;
+
       return {
         appDomain,
         cnameTarget: appDomain,
@@ -396,7 +443,64 @@ export const workspaceRouter = createTRPCRouter({
           `  - TTL: Auto or 3600`,
           `Wait 5-60 minutes for DNS propagation`,
           `Come back and click "Verify Domain"`,
+          isApiConfigured ? `SSL will be automatically activated! 🎉` : `We'll manually activate your domain within 24 hours`,
         ],
+        sslNote,
+        autoActivationEnabled: isApiConfigured,
       };
+    }),
+
+  /**
+   * Check domain SSL status
+   */
+  checkDomainStatus: workspaceProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx }) => {
+      const domain = ctx.workspace.customDomain;
+      
+      if (!domain) {
+        return {
+          hasDomain: false,
+          domain: null,
+          sslStatus: null,
+          message: "No custom domain configured",
+        };
+      }
+
+      const baseDomain = process.env.BASE_DOMAIN || "yourdomain.com";
+      const isSubdomain = domain.endsWith(`.${baseDomain}`);
+
+      if (isSubdomain) {
+        // Subdomain - should have instant SSL via wildcard
+        return {
+          hasDomain: true,
+          domain,
+          type: "subdomain",
+          sslStatus: "active",
+          message: `Your subdomain is active with automatic SSL`,
+          instructions: null,
+        };
+      } else {
+        // Custom domain - needs manual Railway addition
+        return {
+          hasDomain: true,
+          domain,
+          type: "custom",
+          sslStatus: "pending",
+          message: `Domain verified! SSL will be active once added to Railway.`,
+          instructions: [
+            `This is a custom domain and requires manual activation:`,
+            `1. Railway admin must add "${domain}" to Railway dashboard`,
+            `2. Railway will provision SSL certificate (5-15 minutes)`,
+            `3. Your domain will then be fully active with HTTPS`,
+            ``,
+            `Expected activation time: 24-48 hours`,
+          ],
+        };
+      }
     }),
 });

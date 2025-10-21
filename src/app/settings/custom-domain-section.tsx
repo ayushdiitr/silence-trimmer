@@ -21,13 +21,21 @@ export function CustomDomainSection({
   const utils = api.useUtils();
   const verifyDomain = api.workspace.verifyDomain.useMutation({
     onSuccess: (data) => {
-      toast.success("DNS verified!", {
-        description:
-          "Your DNS is configured correctly. We'll activate your domain within 24 hours.",
-        duration: 10000,
-      });
+      if (data.autoActivated) {
+        toast.success("🎉 Domain activated automatically!", {
+          description:
+            "Your domain has been added to Railway! SSL certificate will be provisioned in 5-15 minutes.",
+          duration: 10000,
+        });
+      } else {
+        toast.success("DNS verified!", {
+          description: data.message,
+          duration: 10000,
+        });
+      }
       setDomain("");
       utils.workspace.getById.invalidate();
+      domainStatus.refetch();
     },
     onError: (error) => {
       toast.error("Domain verification failed", {
@@ -50,6 +58,10 @@ export function CustomDomainSection({
   });
 
   const getDomainInstructions = api.workspace.getDomainInstructions.useQuery({
+    workspaceId,
+  });
+
+  const domainStatus = api.workspace.checkDomainStatus.useQuery({
     workspaceId,
   });
 
@@ -122,45 +134,117 @@ export function CustomDomainSection({
       </div>
 
       {currentDomain && !isSubdomain ? (
-        <div className="rounded-lg bg-green-50 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-800">
-                Active Custom Domain
-              </p>
-              <p className="mt-1 text-lg font-semibold text-green-900">
-                {currentDomain}
-              </p>
-              <a
-                href={`https://${currentDomain}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center text-sm text-green-700 hover:text-green-900"
-              >
-                Visit your site
-                <svg
-                  className="ml-1 h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+        <div className="space-y-4">
+          <div className="rounded-lg bg-green-50 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-800">
+                  Active Custom Domain
+                </p>
+                <p className="mt-1 text-lg font-semibold text-green-900">
+                  {currentDomain}
+                </p>
+                <a
+                  href={`https://${currentDomain}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center text-sm text-green-700 hover:text-green-900"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                  />
-                </svg>
-              </a>
+                  Visit your site
+                  <svg
+                    className="ml-1 h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    />
+                  </svg>
+                </a>
+              </div>
+              <button
+                onClick={handleRemove}
+                disabled={removeDomain.isPending}
+                className="rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-200 disabled:opacity-50"
+              >
+                {removeDomain.isPending ? "Removing..." : "Remove"}
+              </button>
             </div>
-            <button
-              onClick={handleRemove}
-              disabled={removeDomain.isPending}
-              className="rounded-lg bg-red-100 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-200 disabled:opacity-50"
-            >
-              {removeDomain.isPending ? "Removing..." : "Remove"}
-            </button>
           </div>
+
+          {/* SSL Status */}
+          {domainStatus.data && domainStatus.data.hasDomain && (
+            <div
+              className={`rounded-lg p-4 ${
+                domainStatus.data.sslStatus === "active"
+                  ? "bg-green-50 border border-green-200"
+                  : "bg-yellow-50 border border-yellow-200"
+              }`}
+            >
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  {domainStatus.data.sslStatus === "active" ? (
+                    <svg
+                      className="h-5 w-5 text-green-600"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-5 w-5 text-yellow-600"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3
+                    className={`text-sm font-medium ${
+                      domainStatus.data.sslStatus === "active"
+                        ? "text-green-900"
+                        : "text-yellow-900"
+                    }`}
+                  >
+                    SSL Certificate Status
+                  </h3>
+                  <div
+                    className={`mt-1 text-sm ${
+                      domainStatus.data.sslStatus === "active"
+                        ? "text-green-800"
+                        : "text-yellow-800"
+                    }`}
+                  >
+                    <p>{domainStatus.data.message}</p>
+                    {domainStatus.data.instructions && (
+                      <div className="mt-2 space-y-1">
+                        {domainStatus.data.instructions.map((instruction, idx) => (
+                          <p key={idx} className="text-xs">
+                            {instruction}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <>
@@ -228,8 +312,12 @@ export function CustomDomainSection({
               <li className="flex">
                 <span className="mr-2 font-semibold">3.</span>
                 <span>
-                  Click &quot;Verify DNS&quot; above. We&apos;ll receive your request and
-                  activate your domain within 24 hours.
+                  Click &quot;Verify DNS&quot; above.{" "}
+                  {getDomainInstructions.data?.autoActivationEnabled ? (
+                    <strong>SSL will be automatically activated! 🎉</strong>
+                  ) : (
+                    "We'll receive your request and activate your domain within 24 hours."
+                  )}
                 </span>
               </li>
               {/* <li className="flex">
@@ -273,15 +361,40 @@ export function CustomDomainSection({
               </div>
               <div className="ml-3">
                 <p className="text-sm text-yellow-700">
-                  <strong>Note:</strong> After DNS verification, we&apos;ll manually
-                  activate your domain on our server. This typically takes less
+                  <strong>SSL Certificate Information:</strong> After DNS verification and
+                  domain activation, an SSL certificate will be automatically provisioned
+                  for your domain (takes 5-15 minutes). Your domain will be accessible via
+                  HTTPS once the certificate is active. Activation typically takes less
                   than 24 hours.
-                   {/* SSL certificate will be automatically
-                  provisioned. */}
                 </p>
               </div>
             </div>
           </div>
+
+          {getDomainInstructions.data?.sslNote && (
+            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-blue-600"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm text-blue-800">
+                    {getDomainInstructions.data.sslNote}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
