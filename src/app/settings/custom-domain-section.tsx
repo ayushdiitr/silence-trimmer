@@ -291,7 +291,7 @@ export function CustomDomainSection({
                     </div>
                   </div>
                   <p className="mt-2 text-xs text-orange-700">
-                    Add a CNAME record in your DNS provider pointing to the value above, then click "Verify DNS" again.
+                    Add a CNAME record in your DNS provider pointing to the value above, then click &quot;Verify DNS&quot; again.
                   </p>
                 </div>
               </div>
@@ -441,7 +441,7 @@ export function CustomDomainSection({
                     </div>
                   </div>
                   <p className="mt-2 text-xs text-orange-700">
-                    Add a CNAME record in your DNS provider pointing to the value above, then click "Verify DNS" again.
+                    Add a CNAME record in your DNS provider pointing to the value above, then click &quot;Verify DNS&quot; again.
                   </p>
                   <div className="mt-3 flex gap-2">
                     <button
