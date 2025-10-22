@@ -303,54 +303,94 @@ export const workspaceRouter = createTRPCRouter({
         });
       }
 
-      const appUrl = env.NEXT_PUBLIC_APP_URL || env.NEXTAUTH_URL;
-      const expectedTarget = appUrl.replace(/^https?:\/\//, "").split(":")[0];
-
       try {
-        const records = await dns.resolveCname(domain).catch(() => null);
-
-        if (!records || records.length === 0) {
-          const aRecords = await dns.resolve4(domain).catch(() => null);
-          
-          if (!aRecords) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: `DNS verification failed. Please add a CNAME record pointing to ${expectedTarget}`,
-            });
-          }
-
-          console.log(`Domain ${domain} uses A record instead of CNAME`);
-        } else {
-          const cnameTarget = records[0]?.toLowerCase();
-          if (!cnameTarget?.includes(expectedTarget ?? "")) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: `CNAME record points to ${cnameTarget} instead of ${expectedTarget}`,
-            });
-          }
-        }
-
         let railwayDomainId: string | null = null;
         let railwayCnameValue: string | null = null;
         let activationMessage = "Domain verified successfully!";
 
+        // Step 1: First create the domain in Railway to get the CNAME value
         if (isRailwayApiConfigured()) {
           console.log(`🚀 Creating domain in Railway: ${domain}`);
+          console.log(`🔍 [DEBUG] Railway API configured - calling createRailwayCustomDomain`);
+          
           const railwayResult = await createRailwayCustomDomain(domain);
+          
+          console.log(`🔍 [DEBUG] Railway API response:`, JSON.stringify(railwayResult, null, 2));
           
           if (railwayResult.success && railwayResult.domainId) {
             railwayDomainId = railwayResult.domainId;
             railwayCnameValue = railwayResult.cnameValue;
-            activationMessage = "Domain verified and automatically added to Railway! SSL certificate will be provisioned in 5-15 minutes.";
             console.log(`✅ Railway domain created: ${domain} (ID: ${railwayDomainId})`);
             console.log(`✅ CNAME value: ${railwayCnameValue}`);
           } else {
-            console.warn(`⚠️ Railway API failed: ${railwayResult.error}. Domain verified but requires manual Railway addition.`);
-            activationMessage = "Domain verified! Please add to Railway dashboard for SSL activation.";
+            console.warn(`⚠️ Railway API failed: ${railwayResult.error}.`);
+            console.warn(`⚠️ Full Railway result:`, JSON.stringify(railwayResult, null, 2));
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: `Failed to create domain in Railway: ${railwayResult.error}`,
+            });
           }
         } else {
-          console.log(`ℹ️ Railway API not configured. Domain verified but requires manual Railway addition.`);
-          activationMessage = "Domain verified! Please add to Railway dashboard for SSL activation.";
+          console.log(`ℹ️ Railway API not configured.`);
+          console.log(`🔍 [DEBUG] Railway API check:`, {
+            hasToken: !!process.env.RAILWAY_API_TOKEN,
+            hasServiceId: !!process.env.RAILWAY_SERVICE_ID,
+            hasEnvironmentId: !!process.env.RAILWAY_ENVIRONMENT_ID,
+            hasProjectId: !!process.env.RAILWAY_PROJECT_ID,
+          });
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Railway API not configured. Please contact support.",
+          });
+        }
+
+        // Step 2: Now verify DNS is pointing to the correct CNAME value
+        if (railwayCnameValue) {
+          console.log(`🔍 [DEBUG] Verifying DNS for ${domain} points to ${railwayCnameValue}`);
+          
+          const records = await dns.resolveCname(domain).catch(() => null);
+
+          if (!records || records.length === 0) {
+            // No CNAME record found - user needs to configure DNS
+            await ctx.db
+              .update(workspaces)
+              .set({ 
+                customDomain: domain,
+                railwayDomainId: railwayDomainId,
+              })
+              .where(eq(workspaces.id, ctx.workspace.id));
+
+            return {
+              success: false,
+              domain,
+              message: `Please configure your DNS: Add a CNAME record pointing to ${railwayCnameValue}`,
+              cnameValue: railwayCnameValue,
+              needsDnsConfig: true,
+            };
+          } else {
+            const cnameTarget = records[0]?.toLowerCase();
+            if (!cnameTarget?.includes(railwayCnameValue.toLowerCase())) {
+              // CNAME points to wrong value
+              await ctx.db
+                .update(workspaces)
+                .set({ 
+                  customDomain: domain,
+                  railwayDomainId: railwayDomainId,
+                })
+                .where(eq(workspaces.id, ctx.workspace.id));
+
+              return {
+                success: false,
+                domain,
+                message: `DNS misconfigured. Your CNAME points to ${cnameTarget} but should point to ${railwayCnameValue}`,
+                cnameValue: railwayCnameValue,
+                needsDnsConfig: true,
+              };
+            } else {
+              // DNS is correctly configured!
+              activationMessage = "Domain verified and automatically added to Railway! SSL certificate will be provisioned in 5-15 minutes.";
+            }
+          }
         }
 
         await ctx.db
@@ -373,10 +413,10 @@ export const workspaceRouter = createTRPCRouter({
           throw error;
         }
 
-        console.error("DNS verification error:", error);
+        console.error("Domain verification error:", error);
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `DNS verification failed. Please ensure ${domain} has a CNAME record pointing to ${expectedTarget}`,
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Domain verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
         });
       }
     }),
@@ -508,10 +548,9 @@ export const workspaceRouter = createTRPCRouter({
           sslStatus: "pending",
           message: `Domain verified! SSL will be active once added to Railway.`,
           instructions: [
-            `This is a custom domain and requires manual activation:`,
-            `1. Railway admin must add "${domain}" to Railway dashboard`,
-            `2. Railway will provision SSL certificate (5-15 minutes)`,
-            `3. Your domain will then be fully active with HTTPS`,
+            `Your custom domain has been added!`,
+            `1. Railway will provision SSL certificate (5-15 minutes)`,
+            `2. Your domain will then be fully active with HTTPS`,
             ``,
             `Expected activation time: 24-48 hours`,
           ],

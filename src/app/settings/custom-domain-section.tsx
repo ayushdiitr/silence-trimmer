@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { toast } from "sonner";
 import { api } from "~/trpc/react";
 
@@ -17,28 +17,90 @@ export function CustomDomainSection({
 }: CustomDomainSectionProps) {
   const [domain, setDomain] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [needsDnsConfig, setNeedsDnsConfig] = useState(false);
+  const [railwayCnameValue, setRailwayCnameValue] = useState<string | null>(null);
+
+  // Load cached DNS config state on component mount
+  React.useEffect(() => {
+    const cachedDnsConfig = localStorage.getItem(`dns-config-${workspaceId}`);
+    if (cachedDnsConfig) {
+      try {
+        const { needsDnsConfig: cachedNeedsDnsConfig, railwayCnameValue: cachedCnameValue, timestamp } = JSON.parse(cachedDnsConfig);
+        // Cache for 1 hour (3600000 ms)
+        const isExpired = Date.now() - timestamp > 3600000;
+        if (!isExpired && cachedNeedsDnsConfig && cachedCnameValue) {
+          setNeedsDnsConfig(cachedNeedsDnsConfig);
+          setRailwayCnameValue(cachedCnameValue);
+        } else if (isExpired) {
+          // Clear expired cache
+          localStorage.removeItem(`dns-config-${workspaceId}`);
+        }
+      } catch (error) {
+        console.error('Error parsing cached DNS config:', error);
+        localStorage.removeItem(`dns-config-${workspaceId}`);
+      }
+    }
+  }, [workspaceId]);
+
+  // Cache DNS config state when it changes
+  React.useEffect(() => {
+    if (needsDnsConfig && railwayCnameValue) {
+      const cacheData = {
+        needsDnsConfig,
+        railwayCnameValue,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(`dns-config-${workspaceId}`, JSON.stringify(cacheData));
+    } else if (!needsDnsConfig) {
+      // Clear cache when DNS is no longer needed
+      localStorage.removeItem(`dns-config-${workspaceId}`);
+    }
+  }, [needsDnsConfig, railwayCnameValue, workspaceId]);
 
   const utils = api.useUtils();
   const verifyDomain = api.workspace.verifyDomain.useMutation({
     onSuccess: (data) => {
-      if (data.autoActivated && data.cnameValue) {
-        toast.success("🎉 Domain activated automatically!", {
-          description: `Railway CNAME: ${data.cnameValue}. SSL certificate will be provisioned in 5-15 minutes.`,
-          duration: 10000,
+      if (data.success) {
+        // Domain is fully configured and working
+        if (data.autoActivated && data.cnameValue) {
+          toast.success("🎉 Domain activated automatically!", {
+            description: `Railway CNAME: ${data.cnameValue}. SSL certificate will be provisioned in 5-15 minutes.`,
+            duration: 10000,
+          });
+        } else if (data.autoActivated) {
+          toast.success("🎉 Domain activated automatically!", {
+            description:
+              "Your domain has been added to Railway! SSL certificate will be provisioned in 5-15 minutes.",
+            duration: 10000,
+          });
+        } else {
+          toast.success("DNS verified!", {
+            description: data.message,
+            duration: 10000,
+          });
+        }
+        setDomain("");
+        setNeedsDnsConfig(false);
+        setRailwayCnameValue(null);
+      } else if (data.needsDnsConfig) {
+        // Domain created in Railway but DNS needs configuration
+        setNeedsDnsConfig(true);
+        setRailwayCnameValue(data.cnameValue);
+        toast.warning("Domain added to Railway! Configure DNS now", {
+          description: data.message,
+          duration: 15000,
         });
-      } else if (data.autoActivated) {
-        toast.success("🎉 Domain activated automatically!", {
-          description:
-            "Your domain has been added to Railway! SSL certificate will be provisioned in 5-15 minutes.",
-          duration: 10000,
-        });
+        // Don't clear the domain input so user can see what they need to configure
       } else {
-        toast.success("DNS verified!", {
+        // Other success case
+        toast.success("Domain processed", {
           description: data.message,
           duration: 10000,
         });
+        setDomain("");
+        setNeedsDnsConfig(false);
+        setRailwayCnameValue(null);
       }
-      setDomain("");
       utils.workspace.getById.invalidate();
       getDomainInstructions.refetch();
       domainStatus.refetch();
@@ -97,11 +159,17 @@ export function CustomDomainSection({
       return;
     }
 
+    // Clear DNS config cache when removing domain
+    localStorage.removeItem(`dns-config-${workspaceId}`);
+    setNeedsDnsConfig(false);
+    setRailwayCnameValue(null);
+    
     removeDomain.mutate({ workspaceId });
   };
 
-  const cnameTarget =
-    getDomainInstructions.data?.cnameTarget || "your-app.up.railway.app";
+  const cnameTarget = needsDnsConfig && railwayCnameValue 
+    ? railwayCnameValue 
+    : (getDomainInstructions.data?.cnameTarget || "your-app.up.railway.app");
   const subdomain = domain ? domain.split(".")[0] : "videos";
 
   // // Don't show this section if user has a subdomain - they should upgrade
@@ -182,6 +250,54 @@ export function CustomDomainSection({
             </div>
           </div>
 
+         {needsDnsConfig && railwayCnameValue && (
+            <div className="mb-4 rounded-lg border-2 border-orange-200 bg-orange-50 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-orange-400"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-sm font-medium text-orange-900">
+                     DNS Configuration Required
+                  </h3>
+                  <p className="mt-1 text-sm text-orange-800">
+                    Your domain has been added to Railway! Now configure your DNS to point to:
+                  </p>
+                  <div className="mt-3 rounded-lg bg-white p-3 border border-orange-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">CNAME Value:</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(railwayCnameValue);
+                          toast.success("CNAME value copied to clipboard!");
+                        }}
+                        className="text-xs text-orange-600 hover:text-orange-800 font-medium"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <div className="mt-2 font-mono text-sm text-gray-900 bg-gray-50 p-2 rounded border">
+                      {railwayCnameValue}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-orange-700">
+                    Add a CNAME record in your DNS provider pointing to the value above, then click "Verify DNS" again.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SSL Status */}
           {domainStatus.data && domainStatus.data.hasDomain && (
             <div
@@ -251,6 +367,7 @@ export function CustomDomainSection({
               </div>
             </div>
           )}
+         
         </div>
       ) : (
         <>
@@ -281,6 +398,72 @@ export function CustomDomainSection({
               </div>
             </div>
           </div>
+
+          {/* DNS Configuration Required */}
+          {needsDnsConfig && railwayCnameValue && (
+            <div className="mb-4 rounded-lg border-2 border-orange-200 bg-orange-50 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-5 w-5 text-orange-400"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-sm font-medium text-orange-900">
+                     DNS Configuration Required
+                  </h3>
+                  <p className="mt-1 text-sm text-orange-800">
+                    Your domain has been added to Railway! Now configure your DNS to point to:
+                  </p>
+                  <div className="mt-3 rounded-lg bg-white p-3 border border-orange-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">CNAME Value:</span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(railwayCnameValue);
+                          toast.success("CNAME value copied to clipboard!");
+                        }}
+                        className="text-xs text-orange-600 hover:text-orange-800 font-medium"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <div className="mt-2 font-mono text-sm text-gray-900 bg-gray-50 p-2 rounded border">
+                      {railwayCnameValue}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-orange-700">
+                    Add a CNAME record in your DNS provider pointing to the value above, then click "Verify DNS" again.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem(`dns-config-${workspaceId}`);
+                        setNeedsDnsConfig(false);
+                        setRailwayCnameValue(null);
+                        toast.success("DNS configuration cache cleared");
+                      }}
+                      className="text-xs text-orange-600 hover:text-orange-800 font-medium underline"
+                    >
+                      Clear Cache
+                    </button>
+                    <span className="text-xs text-orange-600">•</span>
+                    <span className="text-xs text-orange-600">
+                      Cache expires in 1 hour
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="rounded-lg bg-blue-50 p-4">
             <h3 className="mb-2 font-medium text-blue-900">

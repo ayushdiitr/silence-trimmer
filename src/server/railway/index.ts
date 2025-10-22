@@ -17,9 +17,17 @@ interface RailwayCustomDomainCreateResponse {
       domain: string;
       status: {
         dnsRecords: Array<{
+          currentValue: string;
+          fqdn: string;
+          hostlabel: string;
+          purpose: string;
+          recordType: string;
           requiredValue: string;
           status: string;
+          zone: string;
         }>;
+        cdnProvider: string;
+        certificateStatus: string;
       };
     };
   };
@@ -79,9 +87,17 @@ export async function createRailwayCustomDomain(domain: string): Promise<{
         domain
         status {
           dnsRecords {
+            currentValue
+            fqdn
+            hostlabel
+            purpose
+            recordType
             requiredValue
             status
+            zone
           }
+          cdnProvider
+          certificateStatus
         }
       }
     }
@@ -89,12 +105,20 @@ export async function createRailwayCustomDomain(domain: string): Promise<{
 
   const variables = {
     input: {
-      serviceId: railwayServiceId,
       domain: domain,
+      environmentId: process.env.RAILWAY_ENVIRONMENT_ID,
+      projectId: process.env.RAILWAY_PROJECT_ID,
+      serviceId: railwayServiceId,
     },
   };
 
   try {
+    console.log('🔍 [DEBUG] Creating Railway custom domain...');
+    console.log('🔍 [DEBUG] URL:', RAILWAY_API_URL);
+    console.log('🔍 [DEBUG] Service ID:', railwayServiceId);
+    console.log('🔍 [DEBUG] Domain:', domain);
+    console.log('🔍 [DEBUG] Variables:', JSON.stringify(variables, null, 2));
+
     const response = await fetch(RAILWAY_API_URL, {
       method: "POST",
       headers: {
@@ -107,12 +131,17 @@ export async function createRailwayCustomDomain(domain: string): Promise<{
       }),
     });
 
+    console.log('🔍 [DEBUG] Response status:', response.status);
+    console.log('🔍 [DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('❌ Railway API error response:', errorText);
       throw new Error(`Railway API returned ${response.status}: ${errorText}`);
     }
 
     const result = await response.json() as RailwayCustomDomainCreateResponse;
+    console.log('🔍 [DEBUG] Full Railway API response:', JSON.stringify(result, null, 2));
 
     if (result.errors && result.errors.length > 0) {
       const errorMessage = result.errors.map(e => e.message).join(", ");
@@ -328,6 +357,19 @@ export async function getRailwayCnameTarget(): Promise<string | null> {
  * Check if Railway API is configured
  */
 export function isRailwayApiConfigured(): boolean {
-  return !!(process.env.RAILWAY_API_TOKEN && process.env.RAILWAY_SERVICE_ID);
+  const hasToken = !!process.env.RAILWAY_API_TOKEN;
+  const hasServiceId = !!process.env.RAILWAY_SERVICE_ID;
+  const hasEnvironmentId = !!process.env.RAILWAY_ENVIRONMENT_ID;
+  const hasProjectId = !!process.env.RAILWAY_PROJECT_ID;
+  
+  console.log('🔍 [DEBUG] Railway API configuration check:', {
+    hasToken,
+    hasServiceId,
+    hasEnvironmentId,
+    hasProjectId,
+    configured: hasToken && hasServiceId && hasEnvironmentId && hasProjectId
+  });
+  
+  return !!(hasToken && hasServiceId && hasEnvironmentId && hasProjectId);
 }
 

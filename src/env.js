@@ -44,6 +44,8 @@ export const env = createEnv({
     // Railway API (optional - for automatic custom domain SSL)
     RAILWAY_API_TOKEN: z.string().min(1).optional(),
     RAILWAY_SERVICE_ID: z.string().min(1).optional(),
+    RAILWAY_ENVIRONMENT_ID: z.string().min(1).optional(),
+    RAILWAY_PROJECT_ID: z.string().min(1).optional(),
   },
 
   /**
@@ -81,6 +83,8 @@ export const env = createEnv({
     BASE_DOMAIN: process.env.BASE_DOMAIN,
     RAILWAY_API_TOKEN: process.env.RAILWAY_API_TOKEN,
     RAILWAY_SERVICE_ID: process.env.RAILWAY_SERVICE_ID,
+    RAILWAY_ENVIRONMENT_ID: process.env.RAILWAY_ENVIRONMENT_ID,
+    RAILWAY_PROJECT_ID: process.env.RAILWAY_PROJECT_ID,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_BASE_DOMAIN: process.env.NEXT_PUBLIC_BASE_DOMAIN,
   },
